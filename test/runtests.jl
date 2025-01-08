@@ -23,7 +23,7 @@ end
 end
 
 
-@testset "slider2anim" verbose=true begin
+@testset "slider2anim" verbose = true begin
     r = range(-2,2,10)
     startvalue = r[1]
     fig = Figure(size=(800,800))
@@ -156,11 +156,11 @@ end
 @testset "gridpoints_equilateral" verbose = true begin
     eps_level = 1e-4
        
-    @testset "Vectors, non-rectangular" begin 
+    @testset "Vectors, non-rectangular, forced" begin 
         xSpan = [-3,3]
         ySpan = [-2,2]
         pointSpacing = 0.5
-        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = false, rectangular=false)
+        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = false, rectangular=false, force_equilateral=true)
         ind = round.(Int,range(1,length(V),10))
         
         @test isa(V,Vector{Point{3,Float64}})
@@ -171,15 +171,28 @@ end
         [1.625, 1.0310889132455352, 0.0], [2.375, 1.4641016151377544, 0.0], 
         [3.125, 1.8971143170299736, 0.0]],atol=eps_level)
         x = [v[1] for v in V]
-        @test isapprox(minimum(x),xSpan[1]-pointSpacing/4,atol=eps_level)
-        @test isapprox(maximum(x),xSpan[2]+pointSpacing/4,atol=eps_level)
+        @test isapprox(minimum(x), xSpan[1] - pointSpacing/4, atol = eps_level)
+        @test isapprox(maximum(x), xSpan[2] + pointSpacing/4, atol = eps_level)
+    end
+
+    @testset "Vectors, rectangular, not forced" begin 
+        xSpan = [-3,3]
+        ySpan = [-2,2]
+        pointSpacing = 0.5
+        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = false, rectangular = true, force_equilateral = false)
+        ind = round.(Int,range(1,length(V),10))
+        
+        @test isa(V,Vector{Point{3,Float64}})
+        @test isapprox(V[ind],Point{3, Float64}[[-3.0, -2.0, 0.0], [-1.375, -1.6, 0.0], [-0.125, -1.2, 0.0], [1.125, -0.8, 0.0], [2.375, -0.4, 0.0], [-2.625, 0.4, 0.0], [-0.875, 0.8, 0.0], [-0.125, 1.2, 0.0], [1.625, 1.6, 0.0], [3.0, 2.0, 0.0]],atol=eps_level)        
+        @test isapprox(minp(V),[xSpan[1],ySpan[1],0.0],atol=eps_level)
+        @test isapprox(maxp(V),[xSpan[2],ySpan[2],0.0],atol=eps_level)
     end
 
     @testset "Tuples, rectangular" begin
         xSpan = (-3,3)
         ySpan = (-2,2)
         pointSpacing = 1
-        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = false, rectangular=true)
+        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = false, rectangular = true, force_equilateral = true)
         ind = round.(Int,range(1,length(V),10))
 
         @test isa(V,Vector{Point{3,Float64}})
@@ -199,7 +212,7 @@ end
         xSpan = (-3,3)
         ySpan = (-2,2)
         pointSpacing = 1
-        F,V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = true, rectangular=true)
+        F,V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = true, rectangular = true, force_equilateral = true)
         ind = round.(Int,range(1,length(V),10))
         indF = round.(Int,range(1,length(F),10))
 
@@ -214,13 +227,12 @@ end
         [-1.75, -1.1339745962155614, 0.0], [1.25, -1.1339745962155614, 0.0], 
         [-2.25, -0.2679491924311228, 0.0], [1.75, -0.2679491924311228, 0.0], 
         [-0.75, 0.598076211353316, 0.0], [2.25, 0.598076211353316, 0.0], 
-        [-1.25, 1.4641016151377544, 0.0], [3.0, 1.4641016151377544, 0.0]],atol=eps_level)
+        [-1.25, 1.4641016151377544, 0.0], [3.0, 1.4641016151377544, 0.0]], atol = eps_level)
 
         x = [v[1] for v in V]
-        @test isapprox(minimum(x),xSpan[1],atol=eps_level)
-        @test isapprox(maximum(x),xSpan[2],atol=eps_level)
+        @test isapprox(minimum(x), xSpan[1], atol = eps_level)
+        @test isapprox(maximum(x), xSpan[2], atol = eps_level)
     end
-
 
 end
 
@@ -235,42 +247,42 @@ end
         result = interp_biharmonic_spline(x, y, xi; extrapolate_method=:linear, pad_data=:linear)
         true_result = [0.5003539222091904, 0.7500704989328162, 1.0002266142134255, 
                        1.250045599106698, 1.4999641453937436]
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 
     @testset "Errors" begin
         x = range(0,2,12)
         y = range(0,2,12)
         xi = range(0.5,1.5,5)
-        @test_throws Exception interp_biharmonic_spline(x, y, xi; extrapolate_method=:wrong)
-        @test_throws Exception interp_biharmonic_spline(x, y, xi; extrapolate_method=:linear, pad_data=:wrong)
+        @test_throws Exception interp_biharmonic_spline(x, y, xi; extrapolate_method = :wrong)
+        @test_throws Exception interp_biharmonic_spline(x, y, xi; extrapolate_method = :linear, pad_data = :wrong)
     end
 
     @testset "linear interp only / linear" begin
         x = Float64[0.0, 1.0, 2.0, 3.0]
         y = Float64[0.0, 1.0, 0.0, 1.0]
         xi = range(0.5, 2.5, 5)
-        result = interp_biharmonic_spline(x, y, xi; extrapolate_method=:linear)
+        result = interp_biharmonic_spline(x, y, xi; extrapolate_method = :linear)
         true_result = [0.650942317501349, 0.9999999999999994, 0.501564606542732, 
                       -3.0531133177191805e-16, 0.3537866863312682]
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 
     @testset "linear interp only / linear" begin
         x = Float64[0.0, 1.0, 2.0, 3.0]
         y = Float64[0.0, 1.0, 0.0, 1.0]
         xi = range(0.5, 2.5, 5)
-        result = interp_biharmonic_spline(x, y, xi; extrapolate_method=:constant)
+        result = interp_biharmonic_spline(x, y, xi; extrapolate_method = :constant)
         true_result = [0.650942317501349, 0.9999999999999994, 0.501564606542732, 
                       -3.0531133177191805e-16, 0.3537866863312682]
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 
     @testset "linear / linear" begin
         x = Float64[0.0, 1.0, 2.0, 3.0]
         y = Float64[0.0, 1.0, 0.0, 1.0]
         xi = range(-0.5, 3.5, 9)
-        result = interp_biharmonic_spline(x, y, xi; extrapolate_method=:linear, pad_data=:linear)
+        result = interp_biharmonic_spline(x, y, xi; extrapolate_method = :linear, pad_data = :linear)
         true_result = [-0.5, -2.220446049250313e-16, 0.650942317501349,
             0.9999999999999994, 0.501564606542732,
             -2.983724378680108e-16, 0.3537866863312682,
@@ -282,46 +294,46 @@ end
         x = Float64[0.0, 1.0, 2.0, 3.0]
         y = Float64[0.0, 1.0, 0.0, 1.0]
         xi = range(-0.5, 3.5, 9)
-        result = interp_biharmonic_spline(x, y, xi; extrapolate_method=:linear, pad_data=:constant)
+        result = interp_biharmonic_spline(x, y, xi; extrapolate_method = :linear, pad_data = :constant)
         true_result = [0.0, -1.7763568394002505e-15, 0.5861167655113347,
             0.9999999999999998, 0.5015646065427324,
             -2.42861286636753e-16, 0.41861223832128147,
             0.9999999999999993, 1.0]        
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 
     @testset "linear / none" begin
         x = Float64[0.0, 1.0, 2.0, 3.0]
         y = Float64[0.0, 1.0, 0.0, 1.0]
         xi = range(-0.5, 3.5, 9)
-        result = interp_biharmonic_spline(x, y, xi; extrapolate_method=:linear, pad_data=:none)
+        result = interp_biharmonic_spline(x, y, xi; extrapolate_method = :linear, pad_data = :none)
         true_result = [-0.5, -1.1102230246251565e-16, 0.9548390432176067,
             0.9999999999999999, 0.5061519335211898,
             -1.1102230246251565e-16, 0.18162885699253484, 1.0, 1.5]        
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 
     @testset "constant / none" begin
         x = Float64[0.0, 1.0, 2.0, 3.0]
         y = Float64[0.0, 1.0, 0.0, 1.0]
         xi = range(-0.5, 3.5, 9)
-        result = interp_biharmonic_spline(x, y, xi; extrapolate_method=:constant, pad_data=:none)
+        result = interp_biharmonic_spline(x, y, xi; extrapolate_method = :constant, pad_data = :none)
         true_result = [0.0, -1.1102230246251565e-16, 0.9548390432176067,
             0.9999999999999999, 0.5061519335211898,
             -1.1102230246251565e-16, 0.18162885699253484, 1.0, 1.0]        
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 
     @testset "biharmonic / none" begin
         x = Float64[0.0, 1.0, 2.0, 3.0]
         y = Float64[0.0, 1.0, 0.0, 1.0]
         xi = range(-0.5, 3.5, 9)
-        result = interp_biharmonic_spline(x, y, xi; extrapolate_method=:biharmonic, pad_data=:none)
+        result = interp_biharmonic_spline(x, y, xi; extrapolate_method = :biharmonic, pad_data = :none)
         true_result = [-2.3709643220609977, -1.1102230246251565e-16,
             0.9548390432176067, 0.9999999999999999,
             0.5061519335211898, -1.1102230246251565e-16,
             0.1816288569925348, 1.0, 2.801059658186898]        
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 end
 
@@ -331,14 +343,14 @@ end
     @testset "3D points 1D data, vectors" begin
         result = interp_biharmonic([[0.0, 0.0, -1.0], [0.0, 0.0, 1.0]], [-10, 10], [[0.0, 0.0, x] for x in range(-1, 1, 5)])
         true_result = [-10.0, -7.449961786934791, 0.0, 7.449961786934791, 10.0]        
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 
     @testset "3D points 1D data, geometry basics point vectors" begin
         result = interp_biharmonic(Point3{Float64}[[0.0, 0.0, -1.0], [0.0, 0.0, 1.0]], [-10, 10],
             [Point3{Float64}(0.0, 0.0, x) for x in range(-1, 1, 5)])
         true_result = [-10.0, -7.449961786934791, 0.0, 7.449961786934791, 10.0]        
-        @test isapprox(result, true_result, atol=eps_level)
+        @test isapprox(result, true_result, atol = eps_level)
     end
 end
 
@@ -393,7 +405,7 @@ end
         t = range(0.0,2.0*π,np) # Parameterisation metric
         V = [GeometryBasics.Point{3, Float64}(cos(t[i]),sin(t[i]),t[i]/(2.0*π)) for i in eachindex(t)] # ND data, here 3D points
         np_i = np*3 
-        ti = range(minimum(t)-0.5,maximum(t)+0.5,np_i)
+        ti = range(minimum(t)-0.5, maximum(t) + 0.5, np_i)
 
         @test isapprox(lerp(t,V,ti),Point3{Float64}[[1.167558325036443, -0.46036271447926463, -0.07957747154594766], [1.0833956815191297, -0.22912775185383769, -0.03960661143933059], [0.9992330380018164, 0.0021072107715893167, 0.0003642486672864905], [0.9150703944845031, 0.23334217339701627, 0.04033510877390357], [0.8309077509671899, 0.46457713602244327, 0.08030596888052065], [0.7171768097594708, 0.6710013509613107, 0.12027682898713773], [0.504069515472875, 0.7940389046839496, 0.1602476890937548], [0.29096222118627935, 0.9170764584065885, 0.2002185492003719], [0.06471611212984507, 0.9656000907937172, 0.24018940930698895], [-0.17762056150557648, 0.9228695968166506, 0.28016026941360606], [-0.419957235140998, 0.8801391028395841, 0.32013112952022316], [-0.6059298257654833, 0.7397831533655452, 0.36010198962684026], [-0.7641038558835915, 0.5512786847171849, 0.40007284973345736], [-0.9222778860016999, 0.3627742160688245, 0.4400437098400744], [-0.9396926207859084, 0.12303755372263896, 0.48001456994669145], [-0.9396926207859084, -0.12303755372263873, 0.5199854300533086], [-0.9222778860017001, -0.36277421606882426, 0.5599562901599257], [-0.7641038558835918, -0.5512786847171848, 0.5999271502665426], [-0.6059298257654835, -0.7397831533655452, 0.6398980103731597], [-0.41995723514099864, -0.880139102839584, 0.6798688704797768], [-0.17762056150557712, -0.9228695968166505, 0.7198397305863939], [0.06471611212984442, -0.9656000907937171, 0.759810590693011], [0.29096222118627946, -0.9170764584065884, 0.7997814507996283], [0.5040695154728753, -0.7940389046839496, 0.8397523109062452], [0.7171768097594708, -0.6710013509613109, 0.8797231710128623], [0.8309077509671898, -0.46457713602244327, 0.9196940311194793], [0.9150703944845031, -0.23334217339701638, 0.9596648912260964], [0.9992330380018164, -0.0021072107715894555, 0.9996357513327135], [1.0833956815191297, 0.22912775185383755, 1.0396066114393308], [1.167558325036443, 0.46036271447926436, 1.0795774715459476]],atol=eps_level)
     end
@@ -406,8 +418,8 @@ end
 end
 
 @testset "lerp_" begin 
-    @test Comodo.lerp_([0.0,1.0],[0.0,10.0],0.5) == 5.0 # Vector input
-    @test Comodo.lerp_(range(0.0,1.0,3),range(0.0,10.0,3),0.5) == 5.0 # range input
+    @test Comodo.lerp_([0.0, 1.0], [0.0, 10.0],0.5) == 5.0 # Vector input
+    @test Comodo.lerp_(range(0.0, 1.0, 3), range(0.0, 10.0, 3),0.5) == 5.0 # range input
 end
 
 
@@ -458,7 +470,7 @@ end
         @test isapprox(result, [2.141592653589793 3.296908309475615 3.296908309475615;
                 3.296908309475615 2.141592653589793 3.296908309475615;
                 3.296908309475615 3.296908309475615 2.141592653589793;
-                2.5664019743426345 2.5664019743426345 2.5664019743426345], atol=eps_level)
+                2.5664019743426345 2.5664019743426345 2.5664019743426345], atol = eps_level)
     end
 end
 
@@ -486,7 +498,7 @@ end
     @test ind == [1,2,3]
 
     # Do not snap to self if self is avoided
-    D,ind = mindist(V1, V1; getIndex=true,skipSelf = true)    
+    D,ind = mindist(V1, V1; getIndex = true, skipSelf = true)    
     @test D isa Vector{Float64}
     @test isapprox(D, [3.7416573867739413, 3.7416573867739413, 10.775880678677236], atol = eps_level)
     @test ind == [2,1,2]
@@ -498,7 +510,7 @@ end
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [1, 2, 3, 6, 9]
 
-    result1, result2 = Comodo.unique_dict_index([[1, 2, 3], [3,2,1],[4,5,6]],sort_entries=true)
+    result1, result2 = Comodo.unique_dict_index([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [1, 3]
 end 
@@ -510,7 +522,7 @@ end
     @test result2 == [1, 2, 3, 6, 9]
     @test result3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
 
-    result1, result2, result3 = Comodo.unique_dict_index_inverse([[1, 2, 3], [3,2,1],[4,5,6]],sort_entries=true)
+    result1, result2, result3 = Comodo.unique_dict_index_inverse([[1, 2, 3], [3,2,1],[4,5,6]],sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [1, 3]
     @test result3 == [1, 1, 2]
@@ -523,7 +535,7 @@ end
     @test result2 == [1, 2, 3, 6, 9]
     @test result3 == [1, 1, 3, 3, 1]
 
-    result1, result2, result3 = Comodo.unique_dict_index_count([[1, 2, 3], [3,2,1],[4,5,6]],sort_entries=true)
+    result1, result2, result3 = Comodo.unique_dict_index_count([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [1, 3]
     @test result3 == [2, 1]
@@ -537,7 +549,7 @@ end
     @test r3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
     @test r4 == [1, 1, 3, 3, 1]
 
-    r1, r2, r3, r4 = Comodo.unique_dict_index_inverse_count([[1, 2, 3], [3,2,1],[4,5,6]],sort_entries=true)
+    r1, r2, r3, r4 = Comodo.unique_dict_index_inverse_count([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
     @test r1 == [[1, 2, 3], [4, 5,6]]
     @test r2 == [1, 3]
     @test r3 == [1, 1, 2]
@@ -550,7 +562,7 @@ end
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [3, 4, 2, 1, 1]
 
-    result1, result2 = Comodo.unique_dict_count([[1, 2, 3], [3,2,1],[4,5,6]],sort_entries=true)
+    result1, result2 = Comodo.unique_dict_count([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [2,1]
 end
@@ -561,7 +573,7 @@ end
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5]
 
-    result1, result2 = Comodo.unique_dict_inverse([[1, 2, 3], [3,2,1],[4,5,6]],sort_entries=true)
+    result1, result2 = Comodo.unique_dict_inverse([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [1, 1, 2]
 end 
@@ -607,7 +619,7 @@ end
         # Vector of vectors pre-sorting used
         A = [[3,1],[2,0],[1,3],[4,0],[2,0],[5,0],[6,0]]
         B_true = Bool[0, 0, 0, 1, 0, 1, 1]
-        @test occursonce(A; sort_entries=true) == B_true
+        @test occursonce(A; sort_entries = true) == B_true
     end
 
     @testset "vector edges or faces" begin 
@@ -624,7 +636,7 @@ end
         # Vector of vectors pre-sorting used
         A = LineFace{Int}[[3,1],[2,0],[1,3],[4,0],[2,0],[5,0],[6,0]]
         B_true = Bool[0, 0, 0, 1, 0, 1, 1]
-        @test occursonce(A; sort_entries=true) == B_true
+        @test occursonce(A; sort_entries = true) == B_true
 
 
         # Vector of integers (pre-sorted)
@@ -640,35 +652,35 @@ end
         # Vector of vectors pre-sorting used
         A = TriangleFace{Int}[[3,1,2],[2,1,2],[3,2,1],[4,1,2],[2,1,2],[5,1,2],[6,1,2]]
         B_true = Bool[0, 0, 0, 1, 0, 1, 1]
-        @test occursonce(A; sort_entries=true) == B_true        
+        @test occursonce(A; sort_entries = true) == B_true        
     end
 end
 
 @testset "gunique" begin     
-    r1, r2, r3, r4 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index=true, return_inverse=true, return_counts=true, sort_entries=false)
+    r1, r2, r3, r4 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = true, return_inverse = true, return_counts = true, sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 2, 3, 6, 9]
     @test r3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
     @test r4 == [1, 1, 3, 3, 1]
 
-    r1, r2, r3 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index=true, return_inverse=true, return_counts=false, sort_entries=false)
+    r1, r2, r3 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = true, return_inverse = true, return_counts = false, sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 2, 3, 6, 9]
     @test r3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
 
-    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index=false, return_inverse=false, return_counts=true, sort_entries=false)
+    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = false, return_inverse = false, return_counts = true, sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 1, 3, 3, 1]
 
-    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index=false, return_inverse=true, return_counts=false, sort_entries=false)
+    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = false, return_inverse = true, return_counts = false, sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
 
-    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index=true, return_inverse=false, return_counts=false, sort_entries=false)
+    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = true, return_inverse = false, return_counts = false, sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 2, 3, 6, 9]
 
-    r1 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index=false, return_inverse=false, return_counts=false, sort_entries=false)
+    r1 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = false, return_inverse = false, return_counts = false, sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
 end 
 
@@ -684,7 +696,7 @@ end
     end
 
     @testset "Set of two triangles" begin
-        F = [TriangleFace{Int}(1, 2, 3),TriangleFace{Int}(1, 2, 3)]   
+        F = [TriangleFace{Int}(1, 2, 3), TriangleFace{Int}(1, 2, 3)]   
         V = [Point3{Float64}(rand(3)) for _ in 1:3]    
         F_uni, ind1, ind2 = unique_simplices(F)
         @test F_uni == [F[1]]
@@ -704,42 +716,42 @@ end
         A = rand(6,8)
 
         # Test for out of range indices
-        @test_throws BoundsError ind2sub(size(A),-1)
-        @test_throws BoundsError ind2sub(size(A),length(A)+1)
+        @test_throws BoundsError ind2sub(size(A), -1)
+        @test_throws BoundsError ind2sub(size(A), length(A)+1)
     end
 
     ind = [1,2,3,4,8,12,30]
 
     @testset "1D i.e. Vector" begin
         A = rand(30)
-        IJK_A = ind2sub(size(A),ind)
+        IJK_A = ind2sub(size(A), ind)
         @test all([A[ind[i]] == A[IJK_A[i][1]] for i in eachindex(ind)])
         @test isempty(ind2sub(size(A),Int[])) # Check if empty is returned
     end
 
     @testset "2D i.e. 2D Matrix" begin
         B = rand(5,6) 
-        IJK_B = ind2sub(size(B),ind)
-        @test all([B[ind[i]] == B[IJK_B[i][1],IJK_B[i][2]] for i in eachindex(ind)])
+        IJK_B = ind2sub(size(B), ind)
+        @test all([B[ind[i]] == B[IJK_B[i][1], IJK_B[i][2]] for i in eachindex(ind)])
     end
 
     @testset "3D i.e. 3D matrix" begin
         C = rand(3,5,2)
-        IJK_C = ind2sub(size(C),ind)
-        @test all([C[ind[i]] == C[IJK_C[i][1],IJK_C[i][2],IJK_C[i][3]] for i in eachindex(ind)])
+        IJK_C = ind2sub(size(C), ind)
+        @test all([C[ind[i]] == C[IJK_C[i][1], IJK_C[i][2], IJK_C[i][3]] for i in eachindex(ind)])
     end
 
     @testset "Vector specifying size" begin
         C = rand(3,5,2)
-        IJK_C = ind2sub(collect(size(C)),ind)
-        @test all([C[ind[i]] == C[IJK_C[i][1],IJK_C[i][2],IJK_C[i][3]] for i in eachindex(ind)])
+        IJK_C = ind2sub(collect(size(C)), ind)
+        @test all([C[ind[i]] == C[IJK_C[i][1], IJK_C[i][2], IJK_C[i][3]] for i in eachindex(ind)])
     end
 
     @testset "Tuple specifying indices" begin
         C = rand(3,5,2)
         ind_tuple = Tuple(ind[i] for i in eachindex(ind))
-        IJK_C = ind2sub(collect(size(C)),ind_tuple)
-        @test all([C[ind_tuple[i]] == C[IJK_C[i][1],IJK_C[i][2],IJK_C[i][3]] for i in eachindex(ind_tuple)])
+        IJK_C = ind2sub(collect(size(C)), ind_tuple)
+        @test all([C[ind_tuple[i]] == C[IJK_C[i][1], IJK_C[i][2], IJK_C[i][3]] for i in eachindex(ind_tuple)])
     end
 end
 
@@ -1771,16 +1783,17 @@ end
     @testset "Single hex box" begin
         E,V,F,Fb,CFb_type = hexbox([1.0,1.0,1.0],[1,1,1])
         @test E == [[1, 2, 4, 3, 5, 6, 8, 7]] 
-        @test V == Point3{Float64}[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0], [1.0, 1.0, 1.0]]
-        @test F == QuadFace{Int}[[3, 4, 2, 1], [5, 6, 8, 7], [1, 2, 6, 5], [4, 3, 7, 8], [2, 4, 8, 6], [5, 7, 3, 1]]
-        @test Fb == QuadFace{Int}[[3, 4, 2, 1], [5, 6, 8, 7], [1, 2, 6, 5], [4, 3, 7, 8], [2, 4, 8, 6], [5, 7, 3, 1]]
+        @test V == Point{3, Float64}[[-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [0.5, 0.5, -0.5], [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [-0.5, 0.5, 0.5], [0.5, 0.5, 0.5]]
+        @test F == QuadFace{Int}[[3, 4, 2, 1], [5, 6, 8, 7], [1, 2, 6, 5], [7, 8, 4, 3], [2, 4, 8, 6], [5, 7, 3, 1]]
+        @test Fb == QuadFace{Int}[[3, 4, 2, 1], [5, 6, 8, 7], [1, 2, 6, 5], [7, 8, 4, 3], [2, 4, 8, 6], [5, 7, 3, 1]]
         @test CFb_type == [1, 2, 3, 4, 5, 6]
     end
     @testset "2x2x2 hex box" begin
         E,V,F,Fb,CFb_type = hexbox([1.0,1.0,1.0],[2,2,2])
+        ind = round.(Int,range(1,length(V),5))
         @test E[1] == [1, 2, 5, 4, 10, 11, 14, 13]
         @test length(E) == 8
-        @test V[5] == [0.5, 0.5, 0.0]
+        @test V[ind] == Point{3, Float64}[[-0.5, -0.5, -0.5], [0.0, 0.5, -0.5], [0.0, 0.0, 0.0], [0.0, -0.5, 0.5], [0.5, 0.5, 0.5]]
         @test length(V) == 27
         @test length(F) == 48
         @test length(Fb) == 24
@@ -1793,7 +1806,7 @@ end
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
 
         con_F2E = con_face_edge(F)
         @test con_F2E == [[1,2,3]]
@@ -1805,7 +1818,7 @@ end
     @testset "Single quad" begin
         F = QuadFace{Int}[[1,2,3,4]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
 
         con_F2E = con_face_edge(F)
         @test con_F2E == [[1,2,3,4]]
@@ -1832,7 +1845,7 @@ end
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
 
         con_E2F = con_edge_face(F)
         @test con_E2F == fill([1],length(F[1]))
@@ -1844,7 +1857,7 @@ end
     @testset "Single quad" begin
         F = QuadFace{Int}[[1,2,3,4]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
 
         con_E2F = con_edge_face(F)
         @test con_E2F == fill([1],length(F[1]))
@@ -1871,7 +1884,7 @@ end
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
         con_E2F = con_edge_face(F)
         con_F2E = con_face_edge(F)
 
@@ -1886,7 +1899,7 @@ end
     @testset "Single quad" begin
         F = QuadFace{Int}[[1,2,3,4]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
         con_E2F = con_edge_face(F)
         con_F2E = con_face_edge(F)
 
@@ -2069,7 +2082,7 @@ end
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
         con_V2E = con_vertex_edge(E_uni) 
                 
         con_E2E = con_edge_edge(E_uni)
@@ -2082,7 +2095,7 @@ end
     @testset "Single quad" begin
         F = QuadFace{Int}[[1,2,3,4]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
         con_V2E = con_vertex_edge(E_uni) 
 
         con_E2E = con_edge_edge(E_uni)
@@ -2095,7 +2108,7 @@ end
     @testset "Triangles" begin
         F = TriangleFace{Int}[[1,2,3],[2,3,4]]       
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
         con_E2E = con_edge_edge(E_uni)
         @test con_E2E == [[4, 2, 5], [1, 5, 3, 4], [2, 4, 5], [2, 3, 1], [3, 1, 2]]      
     end
@@ -2103,7 +2116,7 @@ end
     @testset "Quads" begin
         F = QuadFace{Int}[[1,2,3,4],[3,4,5,6]]      
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)      
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)      
         con_E2E = con_edge_edge(E_uni)
         @test con_E2E == [[6, 3], [3, 7, 4, 6], [1, 2, 7], [2, 6, 5], [4, 7], [2, 4, 1], [5, 2, 3]]    
     end
@@ -2154,7 +2167,7 @@ end
         F = TriangleFace{Int}[[1,2,3]]        
         V = [Point3{Float64}(rand(3)) for _ in 1:3]        
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
         con_V2E = con_vertex_edge(E_uni) 
 
         con_V2V = con_vertex_vertex(E)
@@ -2168,7 +2181,7 @@ end
         F = QuadFace{Int}[[1,2,3,4]]        
         V = [Point3{Float64}(rand(4)) for _ in 1:4]        
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)    
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
         con_V2E = con_vertex_edge(E_uni) 
 
         con_V2V = con_vertex_vertex(E)
@@ -2201,7 +2214,7 @@ end
 
         # EDGE-VERTEX connectivity
         E = meshedges(F)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
 
         # FACE-EDGE connectivity
         con_F2E = con_face_edge(F,E_uni,indReverse)    
@@ -2251,7 +2264,7 @@ end
 
         # EDGE-VERTEX connectivity
         E = meshedges(F)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
 
         # FACE-EDGE connectivity
         con_F2E = con_face_edge(F,E_uni,indReverse)    
@@ -2301,7 +2314,7 @@ end
 
         # EDGE-VERTEX connectivity
         E = meshedges(F)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
 
         # FACE-EDGE connectivity
         con_F2E = con_face_edge(F,E_uni,indReverse)    
@@ -2351,7 +2364,7 @@ end
         
         # EDGE-VERTEX connectivity
         E = meshedges(F)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)
+        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
 
         # FACE-EDGE connectivity
         con_F2E = con_face_edge(F,E_uni,indReverse)    
@@ -2614,23 +2627,22 @@ end
 
     F,V = quadplate(plateDim,plateElem; orientation=:down)
     @test F[1] == [6,7,2,1]
-
-
 end
 
 @testset "triplate" begin
-    eps_level = 1e-4
+    eps_level = 1e-6
 
     plateDim = [15.0,10.0]
     pointSpacing = 2.5
 
     F,V = triplate(plateDim,pointSpacing; orientation=:up)    
     ind = round.(Int,range(1,length(V),6))
-    V_true = Point{3, Float64}[[-7.5, -5.0, 0.0], [-7.5, -2.8349364905389036, 0.0], [-7.5, -0.6698729810778072, 0.0], [7.5, -0.6698729810778072, 0.0], [7.5, 1.4951905283832891, 0.0], [7.5, 3.6602540378443855, 0.0]]
-
+    
     @test V isa Vector{Point3{Float64}}    
-    @test isapprox(V[ind], V_true, atol=eps_level)
+    @test isapprox(V[ind], Point{3, Float64}[[-7.5, -5.0, 0.0], [-4.375, -3.0, 0.0], [-3.125, -1.0, 0.0], [3.125, 1.0, 0.0], [4.375, 3.0, 0.0], [7.5, 5.0, 0.0]], atol=eps_level)
     @test F isa Vector{TriangleFace{Int}}        
+    @test isapprox(minp(V),[-plateDim[1]/2.0,-plateDim[2]/2.0,0.0],atol=eps_level)
+    @test isapprox(maxp(V),[ plateDim[1]/2.0, plateDim[2]/2.0,0.0],atol=eps_level)
 
     # Check orientation 
     F,V = triplate(plateDim,pointSpacing; orientation=:up)    
@@ -3602,7 +3614,7 @@ end
     @testset "Single triangle" begin
         F = [TriangleFace{Int}(1, 2, 3)]       
         E = meshedges(F)
-        Eu,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)
+        Eu,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
         count_E2F = count_edge_face(F,Eu,indReverse)
         @test count_E2F == [1,1,1]
 
@@ -3615,7 +3627,7 @@ end
     @testset "Single quad" begin
         F = [QuadFace{Int}(1, 2, 3, 4)]       
         E = meshedges(F)
-        Eu,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)
+        Eu,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
         count_E2F = count_edge_face(F,Eu,indReverse)
         @test count_E2F == [1,1,1,1]
     end
@@ -3623,7 +3635,7 @@ end
     @testset "Triangles" begin
         F = [TriangleFace{Int}(1, 2, 3),TriangleFace{Int}(1, 4, 3)]
         E = meshedges(F)
-        Eu,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)
+        Eu,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
         count_E2F = count_edge_face(F,Eu,indReverse)
         @test count_E2F == [1,1,1,1,2]
     end
@@ -3631,7 +3643,7 @@ end
     @testset "Quads" begin
         F = [QuadFace{Int}(1, 2, 3, 4),QuadFace{Int}(6, 5, 4, 3)]
         E = meshedges(F)
-        Eu,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)
+        Eu,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
         count_E2F = count_edge_face(F,Eu,indReverse)
         @test count_E2F == [1,1,1,1,2,1,1] 
     end
@@ -4072,7 +4084,7 @@ end
 end
 
 
-@testset "distmarch" verbose=true begin
+@testset "distmarch" verbose = true begin
     eps_level = 1e-4
 
     @testset "Single face" begin
@@ -4793,7 +4805,7 @@ end
     end
 end
 
-@testset "batman" verbose=true begin
+@testset "batman" verbose = true begin
     eps_level = 1e-6
 
     n = 50 # Number of points, first testing an even number
@@ -4833,7 +4845,7 @@ end
 end
 
 
-@testset "tridisc" verbose=true begin
+@testset "tridisc" verbose = true begin
     eps_level = 1e-6
     r = 2.0
     
@@ -4892,7 +4904,7 @@ end
 end
 
 
-@testset "regiontrimesh" verbose=true begin  
+@testset "regiontrimesh" verbose = true begin  
     n1 = 120
     r1 = 20.0
     V1 = circlepoints(r1,n1)
@@ -4946,7 +4958,7 @@ end
 end
 
 
-@testset "scalesimplex" verbose=true begin
+@testset "scalesimplex" verbose = true begin
     eps_level = 1e-6
 
     Fq,Vq = cube(sqrt(3))
@@ -5021,7 +5033,7 @@ end
 end
 
 
-@testset "subcurve" verbose=true begin
+@testset "subcurve" verbose = true begin
     eps_level = 1e-6
 
     t = range(0.0,2*π,5) 
@@ -5049,7 +5061,7 @@ end
     [6.283185307179586, 1.0, 0.0]],atol=eps_level)
 end
 
-@testset "dualclad" verbose=true begin
+@testset "dualclad" verbose = true begin
     eps_level = 1e-6
 
     @testset "Triangles, single scale" begin
@@ -5220,7 +5232,7 @@ end
 
 
 
-@testset "tet2hex" verbose=true begin
+@testset "tet2hex" verbose = true begin
     eps_level = 1e-6
 
     E = [Tet4{Int}(1,2,3,4),Tet4{Int}(2,3,4,5),Tet4{Int}(6,7,8,9)]
@@ -5251,7 +5263,7 @@ end
 end
 
 
-@testset "element2faces" verbose=true begin
+@testset "element2faces" verbose = true begin
     @testset "hex8" begin
         boxDim = [1.0,2.0,3.0] # Dimensions for the box in each direction
         boxEl = [1,1,1] # Number of elements to use in each direction 
@@ -5350,7 +5362,7 @@ end
 end
 
 
-@testset "subhex" verbose=true begin
+@testset "subhex" verbose = true begin
     boxDim = [1.0,2.0,3.0] # Dimensions for the box in each direction
     boxEl = [1,1,1] # Number of elements to use in each direction 
     E,V,F,Fb,CFb_type = hexbox(boxDim,boxEl)
@@ -5387,7 +5399,7 @@ end
 end
 
 
-@testset "rhombicdodecahedron" verbose=true begin
+@testset "rhombicdodecahedron" verbose = true begin
     eps_level = 1e-6
     F,V = rhombicdodecahedron(1.0)    
     @test isa(F,Vector{QuadFace{Int}})
@@ -5402,10 +5414,10 @@ end
 end
 
 
-@testset "tri2quad" verbose=true begin
+@testset "tri2quad" verbose = true begin
     eps_level = 1e-6
 
-    @testset "tri2quad, split" verbose=true begin
+    @testset "tri2quad, split" verbose = true begin
         @testset "Single triangle" begin
             F = [TriangleFace{Int}(1,2,3)]
             V = [Point{3,Float64}(0.0,0.0,0.0),Point{3,Float64}(1.0,0.0,0.0),Point{3,Float64}(1.0,1.0,0.0)]
@@ -5460,7 +5472,7 @@ end
         end
     end
 
-    @testset "tri2quad, rhombic" verbose=true begin
+    @testset "tri2quad, rhombic" verbose = true begin
         @testset "Single triangle" begin
             F = [TriangleFace{Int}(1,2,3)]
             V = [Point{3,Float64}(0.0,0.0,0.0),Point{3,Float64}(1.0,0.0,0.0),Point{3,Float64}(1.0,1.0,0.0)]
@@ -5535,7 +5547,7 @@ end
 end
 
 
-@testset "tetgenmesh" verbose=true begin
+@testset "tetgenmesh" verbose = true begin
     eps_level = 1e-4
 
     @testset "One region sphere" begin
@@ -5668,7 +5680,7 @@ end
 end
 
 
-@testset "extrudefaces" verbose=true begin
+@testset "extrudefaces" verbose = true begin
     eps_level = 1e-6
 
     @testset "Single QuadFace" begin        
@@ -5822,7 +5834,7 @@ end
     end
 end
 
-@testset "filletcurve" verbose=true begin
+@testset "filletcurve" verbose = true begin
     eps_level = 1e-6
 
     @testset "Two point line" begin        
@@ -6309,7 +6321,7 @@ end
 end
 
 
-@testset "truncatedoctahedron" verbose=true begin
+@testset "truncatedoctahedron" verbose = true begin
     eps_level = 1e-6
 
     w = 1.0
@@ -6372,7 +6384,7 @@ end
 end
 
 
-@testset "ntrapezohedron" verbose=true begin
+@testset "ntrapezohedron" verbose = true begin
     eps_level = 1e-6
 
     r = 2.1
@@ -6386,7 +6398,7 @@ end
 end
 
 
-@testset "spacing2numvertices" verbose=true begin
+@testset "spacing2numvertices" verbose = true begin
     r = 2.0 # radius
     n = 3 # Number of refinement iterations
     F,V = geosphere(n,r)
@@ -6419,3 +6431,171 @@ end
     @test abs(NV-length(V2))<length(V2)/100
     @test abs(pointSpacingTrue-pointSpacingDesired)<pointSpacingDesired/100
 end
+
+
+@testset "joingeom" verbose = true begin    
+    n1 = 3 # Number of refinement iterations
+    F1,V1 = geosphere(n1,1.0)
+    n2 = 2 # Number of refinement iterations
+    F2,V2 = geosphere(n2,1.0)
+    n3 = 4 # Number of refinement iterations
+    F3,V3 = geosphere(n3,1.0)
+
+    @testset "Errors" begin        
+        @test_throws Exception joingeom(F1)        
+    end
+
+    @testset "Single face/vertex set" begin
+        F,V,C = joingeom(F1,V1)        
+        @test typeof(F) == typeof(F1) 
+        @test typeof(V) == typeof(V1)
+        @test length(F) == length(F1)
+        @test length(V) == length(V1)
+    end
+
+    @testset "Two face/vertex sets" begin
+        F,V,C = joingeom(F1,V1,F2,V2)        
+        @test typeof(F) == typeof(F1) 
+        @test typeof(V) == typeof(V1)
+        @test length(F) == length(F1)+length(F2)
+        @test length(V) == length(V1)+length(V2)
+    end
+
+    @testset "Three face/vertex sets" begin
+        F,V,C = joingeom(F1,V1,F2,V2,F3,V3)        
+        @test typeof(F) == typeof(F1) 
+        @test typeof(V) == typeof(V1)
+        @test length(F) == length(F1)+length(F2)+length(F3)
+        @test length(V) == length(V1)+length(V2)+length(V3)
+    end
+end
+
+
+@testset "quadbox" verbose = true begin    
+    eps_level = 1e-6
+    pointSpacing = 0.5
+    boxDim = [2.5,3.1,4] # Dimensions for the box in each direction
+    boxEl = ceil.(Int,boxDim./pointSpacing) # Number of elements to use in each direction 
+    F,V,C = quadbox(boxDim,boxEl)
+    V_min = minp(V)
+    V_max = maxp(V)
+    @test typeof(F) == Vector{QuadFace{Int64}}
+    @test typeof(V) == Vector{Point{3,Float64}}
+    @test isapprox(V_min,-boxDim/2.0, atol=eps_level)
+    @test isapprox(V_max, boxDim/2.0, atol=eps_level)
+end
+
+
+@testset "tribox" verbose = true begin    
+    eps_level = 1e-6
+    boxDim = [2.5,3.1,4] # Dimensions for the box in each direction
+    pointSpacing = 0.5
+    F,V,C = tribox(boxDim,pointSpacing)
+    V_min = minp(V)
+    V_max = maxp(V)
+    @test typeof(F) == Vector{TriangleFace{Int64}}
+    @test typeof(V) == Vector{Point{3,Float64}}
+    @test isapprox(V_min,-boxDim/2.0, atol=eps_level)
+    @test isapprox(V_max, boxDim/2.0, atol=eps_level)
+end
+
+
+@testset "Comodo._faces2box" verbose = true begin        
+    pointSpacing = 0.5
+    boxDim = [2.5,3.1,4] # Dimensions for the box in each direction
+    boxEl = ceil.(Int,boxDim./pointSpacing) # Number of elements to use in each direction 
+    F12,V12 = quadplate(boxDim[[1,2]],boxEl[[1,2]]; orientation=:up)
+    F22,V22 = quadplate(boxDim[[1,3]],boxEl[[1,3]]; orientation=:up)
+    F32,V32 = quadplate(boxDim[[3,2]],boxEl[[3,2]]; orientation=:up)
+    F,V,C = Comodo._faces2box(F12,V12,F22,V22,F32,V32,boxDim)
+    
+    @test typeof(F) == typeof(F12) 
+    @test typeof(V) == typeof(V12) 
+    @test isempty(boundaryedges(F)) # No boundary edges 
+    @test length(C) == length(F)
+    @test unique(C) == collect(1.0:1.0:6.0) # Contains the 6 labels        
+end
+
+
+@testset "tetbox" verbose = true begin    
+    eps_level = 1e-6
+    boxDim = [2.5,3.1,4] # Dimensions for the box in each direction
+    pointSpacing = 0.5
+    E, V, Fb, Cb = tetbox(boxDim,pointSpacing)
+    V_min = minp(V)
+    V_max = maxp(V)
+    @test typeof(E) == Vector{Tet4{Int64}}
+    @test typeof(Fb) == Vector{TriangleFace{Int64}}
+    @test typeof(V) == Vector{Point{3,Float64}}
+    @test isapprox(V_min,-boxDim/2.0, atol=eps_level)
+    @test isapprox(V_max, boxDim/2.0, atol=eps_level)
+    @test length(Fb) == length(Cb)
+    @test unique(Cb) == collect(1.0:1.0:6.0) # Contains the 6 labels    
+end
+
+
+@testset "pad3" verbose = true begin        
+    A = rand(5,3,4)
+    
+    padAmount = 2
+    padValue = -2.0 
+    B = pad3(A; padAmount = padAmount, padValue = padValue)
+
+    siz_A = size(A)
+    siz_B = size(B)
+    @test siz_B == siz_A .+ 2*padAmount # Size is correct
+    @test typeof(A) == typeof(B) # Types match
+    # Centre features A
+    @test all(B[padAmount+1:end-padAmount,padAmount+1:end-padAmount,padAmount+1:end-padAmount] == A)
+    # Padded parts are padValue
+    @test all(B[1:padAmount,:,:] .== padValue)
+    @test all(B[:,1:padAmount,:] .== padValue)
+    @test all(B[:,:,1:padAmount] .== padValue)
+    @test all(B[end-padAmount+1:end,:,:] .== padValue)
+    @test all(B[:,end-padAmount+1:end,:] .== padValue)
+    @test all(B[:,:,end-padAmount+1:end] .== padValue)    
+end
+
+
+@testset "getisosurface" verbose = true begin        
+    epsLevel = 1e-4
+
+    # Define sphere using distance function
+    nSteps = 75
+    xr,yr,zr = ntuple(_->range(-1.0,1.0,nSteps),3)
+    A = [norm((x,y,z)) for x in xr, y in yr, z in zr]
+    
+    # xr = collect(xr)
+    # yr = collect(yr)
+    # zr = collect(zr)
+
+    # Get isosurface of sphere
+    level = 0.5
+    cap = false
+    F,V = getisosurface(A; x = xr, y = yr, z = zr, level = level, cap = cap, padValue=1e8)        
+
+    # Check types
+    @test typeof(F) == Vector{TriangleFace{Int64}}
+    @test typeof(V) == Vector{Point{3,Float64}}
+
+    # Output geometry checks
+    @test isapprox(mean(V),[0.0,0.0,0.0], atol = epsLevel) # Is centered on origin
+    @test isapprox(mean(norm.(V)),level, atol = epsLevel) #  Has expected mean radius
+
+    # Get isosurface of sphere protruding from boundary (creating holes)
+    level = 1.25 # Large level=radius such that sphere is too big for domain
+    cap = false
+    F,V = getisosurface(A; x = xr, y = yr, z = zr, level = level, cap = cap, padValue=1e8)        
+
+    # Output geometry checks
+    @test isapprox(mean(V),[0.0,0.0,0.0], atol = epsLevel) # Is centered on origin
+    @test isapprox(mean(norm.(V)),level, atol = epsLevel) #  Has expected mean radius
+    @test length(boundaryedges(F)) > 0 # Has boundary edges due to holes
+
+    # Get isosurface with caps
+    level = 1.25 # Large level=radius such that sphere is too big for domain
+    cap = true
+    F,V = getisosurface(A; x = xr, y = yr, z = zr, level = level, cap = cap, padValue=1e8)            
+    @test length(boundaryedges(F)) == 0 # Is merged/closed due to caps
+end
+

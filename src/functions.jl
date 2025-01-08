@@ -13,6 +13,7 @@ using Distances
 using DelaunayTriangulation # For triangular meshing
 using StaticArrays
 using TetGen # For tetrahedral meshing in tetgenmesh
+using MarchingCubes # For isosurface creation
 
 # Define types
 abstract type AbstractElement{N,T} <: StaticVector{N,T} end
@@ -206,20 +207,28 @@ flat such that all x-coordinates on the left are at the minimum in `xSpan` and
 all on the right are at the maximum in `xSpan`, however, this does result in a 
 non-uniform spacing at these edges.  
 """
-function gridpoints_equilateral(xSpan::Union{Vector{TT},Tuple{TT,TT}},ySpan::Union{Vector{TT},Tuple{TT,TT}},pointSpacing::T; return_faces = false, rectangular=false) where T <: Real where TT <: Real
+function gridpoints_equilateral(xSpan::Union{Vector{TT},Tuple{TT,TT}},ySpan::Union{Vector{TT},Tuple{TT,TT}},pointSpacing::T; return_faces = false, rectangular=false, force_equilateral=false) where T <: Real where TT <: Real
     minX = minimum(xSpan)
     maxX = maximum(xSpan)
     minY = minimum(ySpan)
     maxY = maximum(ySpan)
 
+    # Set up x-range
     wx = maxX - minX
     nx = ceil(Int,wx./pointSpacing)+1 # Number of points in the x-direction
     xRange = range(minX,maxX,nx) # The xRange
-    pointSpacingReal_X=xRange[2]-xRange[1]
-
-    pointSpacingReal_Y=pointSpacingReal_X.*0.5*sqrt(3)
-    yRange = minY:pointSpacingReal_Y:maxY
-
+    pointSpacingReal_X = xRange[2]-xRange[1]
+    
+    # Set up y-range
+    pointSpacing_Y = pointSpacingReal_X.*0.5*sqrt(3) # Point spacing adjusted for equilateral triangles
+    if force_equilateral == true # Perfect equilateral grid needed, does not conform to span        
+        yRange = minY:pointSpacing_Y:maxY
+    else # Approximate grid, conforms to span
+        wy = maxY - minY        
+        ny = ceil(Int,wy./pointSpacing_Y)+1 # Number of points in the y-direction
+        yRange = range(minY,maxY,ny) # The yRange
+    end
+    
     # Create the point grid
     V = Vector{Point{3,Float64}}(undef,length(xRange)*length(yRange))    
     c = 1
@@ -2013,7 +2022,7 @@ function hexbox(boxDim,boxEl)
 
     V = convert(Vector{Point{3, Float64}},IJK_nodes)
     for q in eachindex(V)
-        V[q]=(V[q].-[1,1,1]).*(boxDim./boxEl)
+        V[q] = ((V[q] .- Point{3, Float64}(1.0,1.0,1.0)).*(boxDim./boxEl)) .- Point{3, Float64}(boxDim/2.0)
     end
 
     # Create face sets from elements
@@ -3809,20 +3818,25 @@ unshared vertices. Note that any unused points are not returned in the output
 point array `Vn`. Indices for the mapping are not created here but can simply be
 obtained using `reduce(vcat,F)`.
 """
-function separate_vertices(F::Vector{NgonFace{N, TF}},V::Vector{Point{ND,TV}}) where N where TF<:Integer where ND where TV<:Real
+function separate_vertices(F::Union{Vector{NgonFace{N, TF}},Vector{Element{N, TF}}},V::Vector{Point{ND,TV}}; scaleFactor = nothing) where N where TF<:Integer where ND where TV<:Real
     Vn = Vector{eltype(V)}(undef,length(F)*N)
     Fn = Vector{eltype(F)}(undef,length(F))
     for (i,f) in enumerate(F)   
         Fn[i] = (eltype(F))( (i-1)*N .+ (1:N) )       
-        Vn[Fn[i]] = V[f]
+        if isnothing(scaleFactor)
+            Vn[Fn[i]] = V[f]
+        else
+            vf = mean(V[f])    
+            Vn[Fn[i]] = scaleFactor * (V[f] .- vf) .+ vf
+        end
     end
     return Fn,Vn
 end
 
-function separate_vertices(M::GeometryBasics.Mesh)
+function separate_vertices(M::GeometryBasics.Mesh; scaleFactor = nothing)
     F = faces(M)
     V = coordinates(M)
-    Fn,Vn = separate_vertices(F,V)    
+    Fn,Vn = separate_vertices(F,V; scaleFactor = scaleFactor)    
     return GeometryBasics.Mesh(Vn,Fn)
 end
 
@@ -4288,7 +4302,7 @@ function triplate(plateDim,pointSpacing::T; orientation=:up) where T <: Real
         throw(ArgumentError("Orientation not supported. Use :up or :down"))
     end 
 
-    F, V = gridpoints_equilateral((-plateDim[1]/2,plateDim[1]/2),(-plateDim[2]/2,plateDim[2]/2),pointSpacing; return_faces = true, rectangular=true)
+    F, V = gridpoints_equilateral((-plateDim[1]/2,plateDim[1]/2),(-plateDim[2]/2,plateDim[2]/2),pointSpacing; return_faces = true, rectangular=true, force_equilateral=false)
     if orientation == :down
         return invert_faces(F), V
     else
@@ -4392,9 +4406,20 @@ function regiontrimesh(VT,R,P)
         # Adding interior points 
         xSpan =[minimum([v[1] for v in Vn]),maximum([v[1] for v in Vn])]
         ySpan =[minimum([v[2] for v in Vn]),maximum([v[2] for v in Vn])]
-        Vg = gridpoints_equilateral(xSpan,ySpan,pointSpacing)
-        Vn = append!(Vn,Vg)
+        Vg = gridpoints_equilateral(xSpan,ySpan,pointSpacing)        
+        zMean = mean([v[3] for v in Vn])
+        Vn = append!(Vn,Vg)        
+        Vn = [Point{3,Float64}(v[1],v[2],zMean) for v in Vn] # Force zero z-coordinate
         
+        # Check for unique points 
+        np = length(Vn)
+        Vn,_,indMap = mergevertices(Vn; pointSpacing=pointSpacing)
+        if length(Vn)<np
+            for (i,c) in enumerate(constrained_segments)
+                constrained_segments[i] = [indMap[cc] for cc in c]
+            end
+        end
+
         # Initial triangulation 
         constrained_segments_ori = deepcopy(constrained_segments) # Clone since triangulate can add new constraint points
         TRn = triangulate(Vn; boundary_nodes=constrained_segments, delete_ghosts=true)
@@ -4463,7 +4488,7 @@ function regiontrimesh(VT,R,P)
         append!(C,fill(q,length(Fn))) # Append color data 
     end
     V,_,indMap = mergevertices(V; pointSpacing = mean(P))
-    indexmap!(F,indMap)
+    indexmap!(F,indMap)    
     
     return F,V,C 
 end
@@ -4688,7 +4713,7 @@ function element2faces(E::Vector{Element{N,T}}) where N where T
             F[ii  ] = QuadFace{T}(e[4],e[3],e[2],e[1]) # Top
             F[ii+1] = QuadFace{T}(e[5],e[6],e[7],e[8]) # Bottom
             F[ii+2] = QuadFace{T}(e[1],e[2],e[6],e[5]) # Side 1
-            F[ii+3] = QuadFace{T}(e[3],e[4],e[8],e[7]) # Side 2
+            F[ii+3] = QuadFace{T}(e[8],e[7],e[3],e[4]) # Side 2
             F[ii+4] = QuadFace{T}(e[2],e[3],e[7],e[6]) # Front
             F[ii+5] = QuadFace{T}(e[5],e[8],e[4],e[1]) # Back
         end
@@ -4914,8 +4939,7 @@ function subhex(E::Vector{Hex8{T}},V::Vector{Point{ND,TV}},n::Int; direction=0) 
                                    inv_Et[i_e+3], inv_Et[i_e+2], inv_Et[i_e+0], inv_Et[i_e+1] )   
 
                 Eh[ii+1] = Hex8{T}( Ft[i_f+3][4],  Ft[i_f+3][3],  Ft[i_f+3][2],  Ft[i_f+3][1],
-                                   inv_Et[i_e+2], inv_Et[i_e+3], inv_Et[i_e+1], inv_Et[i_e+0] )   
-
+                                   inv_Et[i_e+1], inv_Et[i_e+0], inv_Et[i_e+2], inv_Et[i_e+3] )   
             end    
         elseif direction == 3 # Split in 3rd-direction
             Vh = [V;Ve] # Append vertices
@@ -5126,7 +5150,7 @@ function tetgenmesh(F::Array{NgonFace{N,TF}, 1},V::Vector{Point{3,TV}}; facetmar
     E = [Tet4{TF}(e) for e in eachcol(TET.tetrahedronlist)] # Tetrahedral elements
     CE = vec(TET.tetrahedronattributelist)
     V = [Point{3,TV}(v) for v in eachcol(TET.pointlist)] # Vertices
-    Fb = [TriangleFace{TF}(f) for f in eachcol(TET.trifacelist)]
+    Fb = [TriangleFace{TF}(reverse(f)) for f in eachcol(TET.trifacelist)]
     Cb = TET.trifacemarkerlist
 
     return E,V,CE,Fb,Cb
@@ -5211,7 +5235,7 @@ function extrudefaces(F::Union{NgonFace{NF,TF},Vector{NgonFace{NF,TF}}},V::Vecto
     elseif face_type == TriangleFace{TF}
         element_type = Penta6{TF}
     else
-        throw(ArgumentError("$face_type type face not supported. Supported types are QuadFace and TriangleFace."))
+        throw(ArgumentError("$face_type face type not supported. Supported types are QuadFace and TriangleFace."))
     end
 
     if direction == :positive # Default
@@ -6071,4 +6095,231 @@ function spacing2numvertices(F::Vector{TriangleFace{TF}},V::Vector{Point{ND,TV}}
     end
     return nv_Out 
 end
+
+"""
+    joingeom(G...)
+
+Joins geometry
+
+# Description 
+This function joins geometry defined for instance by multiple face and vertex 
+sets into one such set. All geometry such be of the same type such that they can
+be joined. The input can for instance be n-sets of faces (or elemens) and 
+vertices e.g. appearing as inpus as: `F1,V1,F2,V2,...,FN,VN`.  
+"""
+function joingeom(G...)
+    # The input G is of the form F1,V1,F2,V2,...FN,VN    
+    if iseven(length(G)) # G should be even in length                         
+        if length(G)==2
+            # Only one set of faces and vertices
+            return G[1],G[2],ones(length(G[1]))
+        else
+            # Multiple sets of faces and vertices
+            F = deepcopy(G[1]) # Initial face set 
+            V = deepcopy(G[2]) # Initial vertex set 
+            C = ones(length(G[1]))                            
+            indexShift = length(V)         
+            c = 1   
+            @inbounds for i in 3:1:length(G)
+                g = G[i]
+                if iseven(i)
+                    append!(V,g) 
+                    indexShift += length(g)
+                else
+                    c += 1
+                    append!(F,[f.+indexShift for f in g])                     
+                    append!(C,fill(c,length(g)))                                         
+                end
+            end
+            return F,V,C        
+        end
+    else        
+        throw(ArgumentError("Number of element sets does not seem to match the number of vertex sets"))        
+    end
+end
+
+"""
+    quadbox(boxDim,boxEl)
+
+Creates quadrilateral box mesh
+
+# Description 
+This function uses the dimensions defined in `boxDim`, and the number of 
+elements listed for each direction in `boxEl` to create a quadrilateral mesh for 
+a box. The output consists of the faces `F`, the vertices `V`, and a face 
+labelling `C` (for the 6 sides of the box). 
+"""
+function quadbox(boxDim,boxEl)
+    F12,V12 = quadplate(boxDim[[1,2]],boxEl[[1,2]]; orientation=:up)
+    F22,V22 = quadplate(boxDim[[1,3]],boxEl[[1,3]]; orientation=:up)
+    F32,V32 = quadplate(boxDim[[3,2]],boxEl[[3,2]]; orientation=:up)
+    return _faces2box(F12,V12,F22,V22,F32,V32,boxDim)
+end
+
+"""
+    tribox(boxDim,pointSpacing)
+
+Creates triangulated box mesh
+
+# Description 
+This function uses the dimensions defined in `boxDim`, and the desired point
+spacing defined by `pointSpacing`, to create a triangulated mesh for a box. 
+The output consists of the faces `F`, the vertices `V`, and a face 
+labelling `C` (for the 6 sides of the box). 
+"""
+function tribox(boxDim,pointSpacing)
+    xr = range(-boxDim[1]/2.0,boxDim[1]/2.0,1+ceil(Int64,boxDim[1]/pointSpacing))
+    yr = range(-boxDim[2]/2.0,boxDim[2]/2.0,1+ceil(Int64,boxDim[2]/pointSpacing))
+    zr = range(-boxDim[3]/2.0,boxDim[3]/2.0,1+ceil(Int64,boxDim[3]/pointSpacing))
+
+    Vc = [Point{3,Float64}(x,-boxDim[2]/2,0.0) for x in xr]
+    v1 = [Point{3,Float64}(boxDim[1]/2,y,0.0) for y in yr]
+    v2 = [Point{3,Float64}(x, boxDim[2]/2,0.0) for x in xr]
+    v3 = [Point{3,Float64}(-boxDim[1]/2,y,0.0) for y in yr]
+    append!(Vc,v1[2:end])
+    append!(Vc,reverse(v2[1:end-1]))
+    append!(Vc,reverse(v3[2:end-1]))
+    F12,V12,_ = regiontrimesh((Vc,),([1],),(pointSpacing))
+    
+    Vc = [Point{3,Float64}(x,-boxDim[3]/2,0.0) for x in xr]
+    v1 = [Point{3,Float64}(boxDim[1]/2,z,0.0) for z in zr]
+    v2 = [Point{3,Float64}(x, boxDim[3]/2,0.0) for x in xr]
+    v3 = [Point{3,Float64}(-boxDim[1]/2,z,0.0) for z in zr]
+    append!(Vc,v1[2:end])
+    append!(Vc,reverse(v2[1:end-1]))
+    append!(Vc,reverse(v3[2:end-1]))
+    F22,V22,_ = regiontrimesh((Vc,),([1],),(pointSpacing))
+
+    Vc = [Point{3,Float64}(z,-boxDim[2]/2,0.0) for z in zr]
+    v1 = [Point{3,Float64}(boxDim[3]/2,y,0.0) for y in yr]
+    v2 = [Point{3,Float64}(z,boxDim[2]/2,0.0) for z in zr]
+    v3 = [Point{3,Float64}(-boxDim[3]/2,y,0.0) for y in yr]
+    append!(Vc,v1[2:end])
+    append!(Vc,reverse(v2[1:end-1]))
+    append!(Vc,reverse(v3[2:end-1]))
+    F32,V32,_ = regiontrimesh((Vc,),([1],),(pointSpacing))
+
+    return _faces2box(F12,V12,F22,V22,F32,V32,boxDim)
+end
+
+
+"""
+    _faces2box(F12,V12,F22,V22,F32,V32,boxDim)
+
+Converts face set to box
+
+# Description 
+This unexported function helps turn 3 sets of faces into a mesh for a box. It is 
+assumed that the faces are for the sides of a box and that each set is defined 
+in the XY plane centered around 0,0. Hence to form the box these faces are 
+rotated and shifted (and inverted if needed). Next the vertices and faces are
+joined and merged to create a "watertight" vertex-sharing closed box. 
+"""
+function _faces2box(F12,V12,F22,V22,F32,V32,boxDim)
+    V11 = V12 .+ Point{3, Float64}([0.0,0.0,-boxDim[3]/2])
+    V12 = V12 .+ Point{3, Float64}([0.0,0.0, boxDim[3]/2])
+    F11 = invert_faces(F12)
+
+    Q = RotXYZ(-0.5*pi,0.0,0.0)
+    V22 = [Point{3, Float64}(Q*v) for v ∈ V22] 
+    V21 = V22 .+ Point{3, Float64}([0.0,-boxDim[2]/2,0.0])
+    V22 = V22 .+ Point{3, Float64}([0.0, boxDim[2]/2,0.0])
+    F21 = invert_faces(F22)
+
+    Q = RotXYZ(0.0,0.5*pi,0.0)
+    V32 = [Point{3, Float64}(Q*v) for v ∈ V32] 
+    V31 = V32 .+ Point{3, Float64}([-boxDim[1]/2,0.0,0.0])
+    V32 = V32 .+ Point{3, Float64}([ boxDim[1]/2,0.0,0.0])
+    F31 = invert_faces(F32)
+
+    F,V,C = joingeom(F11,V11,F12,V12,F21,V21,F22,V22,F31,V31,F32,V32)
+    F,V,_,_ = mergevertices(F,V)
+    return F,V,C
+end
+
+"""
+    tetbox(boxDim,pointSpacing; stringOpt = "paAqYQ",region_vol=nothing)
+
+Creates tetrahedral box mesh
+
+# Description 
+This function uses the dimensions defined in `boxDim`, and the desired point
+spacing defined by `pointSpacing`, to create a tetrahedral mesh for a box. 
+The output consists of the elements `E`, the vertices `V`, the boundary faces 
+`Fb`, and the boundary face labelling `Cb` (for the 6 sides of the box). 
+"""
+function tetbox(boxDim,pointSpacing; stringOpt = "paAqYQ",region_vol=nothing)
+    # Created triangulated box
+    Fb,Vb,Cb = tribox(boxDim,pointSpacing)
+
+    # Create tetrahedral mesh of the box
+    E, V, _, Fb, Cb = tetgenmesh(Fb, Vb; facetmarkerlist=Cb, V_regions=nothing,region_vol=region_vol,V_holes=nothing,stringOpt=stringOpt)
+    
+    return E, V, Fb, Cb
+end
+
+
+function pad3(A::Array{T,3}; padAmount = 1, padValue = T(0.0)) where T<:Real
+    siz = size(A) # Get size of A 
+
+    # Create padded image 
+    B = Array{T,3}(undef,siz .+ (2*padAmount)) 
+    B[1:padAmount,:,:]   .= padValue
+    B[:,1:padAmount,:]   .= padValue
+    B[:,:,1:padAmount]   .= padValue
+    B[end-padAmount+1:end,:,:] .= padValue
+    B[:,end-padAmount+1:end,:] .= padValue
+    B[:,:,end-padAmount+1:end] .= padValue
+
+    # Set centre of B to A
+    @inbounds for i in 1:1:siz[1]
+        @inbounds for j in 1:1:siz[2]
+            @inbounds for k in 1:1:siz[3]
+                B[i+padAmount,j+padAmount,k+padAmount] = A[i,j,k]                
+            end
+        end
+    end
+    return B
+end
+
+
+function getisosurface(A; level=0.0, cap=false, padValue=nothing, x::Union{AbstractVector{T},Nothing}=nothing, y::Union{AbstractVector{T},Nothing}, z::Union{AbstractVector{T},Nothing}) where T<:Real  
+    if cap == true                
+        # Get/determine padValue  
+        if isnothing(padValue)
+            if isapprox(level,0.0,atol=1e-8)
+                padValue=1e10
+            else
+                padValue = level + 1*10^(round(Int,log10(abs(level)))+10)        
+                if level<0                  
+                    padValue *= 1.0
+                end
+            end
+        end               
+        A = pad3(A; padAmount = 1, padValue = padValue) # Pad input array
+        if isnothing(x) || isnothing(y) || isnothing(z)            
+            mc = MarchingCubes.MC(A)
+        else
+            # Extend coordinates to conform to padded array (assumes evenly spaced coordinates in each direction)
+            s = x[2]-x[1]
+            x = range(x[1]-s, x[end]+s, length(x)+2)            
+            s = y[2]-y[1]
+            y = range(y[1]-s, y[end]+s, length(y)+2)
+            s = z[2]-z[1]
+            z = range(z[1]-s, z[end]+s, length(z)+2)                        
+            mc = MarchingCubes.MC(A; x=x, y=y, z=z)            
+        end
+    elseif cap==false
+        if isnothing(x) || isnothing(y) || isnothing(z)            
+            mc = MarchingCubes.MC(A,Int)
+        else
+            mc = MarchingCubes.MC(A,Int; x=x, y=y, z=z)
+        end
+    end    
+    MarchingCubes.march(mc,level)
+    F = [TriangleFace{Int64}(f) for f in mc.triangles]
+    V = [Point{3,Float64}(p) for p in mc.vertices]
+    return F,V
+end
+
 
