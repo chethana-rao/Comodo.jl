@@ -54,3 +54,40 @@ poly!(ax2,M_tri, strokewidth=strokeWidth,color=:white, strokecolor=:black, shadi
 wireframe!(ax2,GeometryBasics.Mesh(V_tri,E_tri),linewidth=linewidth, transparency=false, color=:red)
 scatter!(ax2,VG,color=:green,markersize=markerSize)
 display(GLMakie.Screen(),fig1)
+#Finite Element analysis    
+#compute FEA control parameters
+V = deepcopy(V_quad)
+numNodes = length(V)
+NumDof = 2
+numSpatialDim = length(V[1])-1
+numNodesElem = length(F_quad[1])
+numElements = length(F_quad)
+numDOF_el = NumDof * numNodesElem
+numEq = numNodes * NumDof
+#Gaussian Quadrature 
+s = [-1 1 1 -1]
+t = [-1 -1 1 1]
+order = 2
+if order == 1
+    xi = 0
+    eta = 0
+    w =4 
+elseif order == 2 
+    xi = 1/sqrt(3).*s
+    eta = 1/sqrt(3).*t 
+    w = ones(1,4)
+end
+numIntegrationPoints = length(w)
+#defining the material matrix plane subtriangulation
+ν = 0.3
+E = 210e9
+ν′ = ν/(1-ν)
+E′ = E/(1-ν^2)
+
+D = E′/(1-ν′^2).*[1.0 ν′ 0; ν′ 1 0; 0 0 (1-ν′)/2]
+#Compute the shape functions 
+# B_mat = zeros(3,8,numIntegrationPoints,numElements)
+# det_J_mat = zeros(numIntegrationPoints,numElements)
+# for i_element 
+
+
