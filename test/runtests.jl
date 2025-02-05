@@ -1,6 +1,10 @@
-using Test, FileIO, Comodo, Comodo.GeometryBasics, Statistics, LinearAlgebra, GLMakie, Rotations, BSplineKit
-
-# ConnectivitySet
+using Test, FileIO, Comodo
+using Comodo.GeometryBasics
+using Comodo.Statistics
+using Comodo.LinearAlgebra
+using Comodo.GLMakie
+using Comodo.Rotations
+using Comodo.BSplineKit
 
 @testset "comododir" begin
     f = comododir()
@@ -3069,8 +3073,10 @@ end
     r = 1.0
     nc = 5
     n = Vec{3,Float64}(pi, pi, pi) # Offset vector
+    nSmall = Vec{3,Float64}(0.0, 0.0, 0.01*((2*pi*r)/nc)) # Offset vector
     V1 = circlepoints(r, nc; dir=:cw)
     V2 = [v.+n for v in V1]
+    V2_close = [v.+nSmall for v in V1]
     num_steps = 3
 
     @testset "Errors" begin
@@ -3091,6 +3097,10 @@ end
         # Providing "nothing" for the number of steps should create point spacing based number of steps
         F,V = loftlinear(V1,V2;num_steps=nothing,close_loop=true,face_type=:quad)
         @test length(V)/nc == ceil(Int,norm(n)/(0.5*(pointspacingmean(V1)+pointspacingmean(V2))))
+        
+        # Providing "nothing" for the number of steps and having a small depth should result in num_steps defaulting to 2
+        F,V = loftlinear(V1,V2_close;num_steps=nothing,close_loop=true,face_type=:quad)
+        @test length(V) == length(V1)*2        
     end
 
     @testset "tri" begin
@@ -3486,6 +3496,11 @@ end
     A2 = edgeangles(F,V2) # Angles for sheared cube
     @test all([all(a.==pi/2) for a in A]) # All right angles in undeformed cube
     @test isapprox(sort(unique(reduce(vcat,A2))),[pi/4, pi/2, pi/2+pi/4],atol=eps_level)
+
+    A = edgeangles(F,V; deg = true) # Angles for regular cube
+    A2 = edgeangles(F,V2; deg = true)
+    @test all([all(a.==90) for a in A]) # All right angles in undeformed cube
+    @test isapprox(sort(unique(reduce(vcat,A2))),[45.0, 90.0, 135.0],atol=eps_level)
 end
 
 
@@ -3804,8 +3819,18 @@ end
     E = LineFace{Int}[[1, 2], [2, 3], [3, 4], [4, 5],[5,3]]
     @test_throws Exception edges2curve(E)
 
+    # Closed curve with two branches (two apparent start points)
+    E = LineFace{Int}[[6, 1], [1, 2], [2, 3], [3, 4], [4, 1], [4, 5]]
+    @test_throws Exception edges2curve(E)
+    
+    # Back tracking
     E = LineFace{Int}[[1, 2], [2, 3], [3, 4], [4, 5],[5,3]]
     @test_throws Exception edges2curve(E)
+
+    # Closed curve
+    E = LineFace{Int}[[1, 2], [2, 3], [3, 1], [4, 5], [5, 6], [6, 7]]
+    @test_throws Exception edges2curve(E)
+
 end
 
 
@@ -3860,6 +3885,15 @@ end
         zMax = maximum(z)
         zMin = minimum(z)            
         @test isapprox(zMax,d,atol = eps_level) && isapprox(zMin,0.0,atol = eps_level)
+
+        # Check num_steps = 2 handling 
+        dSmall = pointspacingmean(Vc)/2
+        F, V = extrudecurve(Vc; extent = dSmall, face_type=:tri)
+        z = [v[3] for v in V]
+        zMax = maximum(z)
+        zMin = minimum(z)            
+        @test isapprox(zMax,dSmall,atol = eps_level) && isapprox(zMin,0.0,atol = eps_level)
+        @test length(V) == length(Vc)*2
     end
 
     @testset "Direction (s) variations" begin
@@ -3868,7 +3902,7 @@ end
         zMax = maximum(z)
         zMin = minimum(z)            
         @test isapprox(zMax,d,atol = eps_level) && isapprox(zMin,0.0,atol = eps_level)
-       
+        
         F, V = extrudecurve(Vc; extent=d, direction=:both, n=Vec{3, Float64}(0.0,0.0,1.0), num_steps=num_steps, close_loop=true, face_type=:quad)
         z = [v[3] for v in V]
         zMax = maximum(z)
@@ -3923,6 +3957,7 @@ end
 
         ind = round.(Int,range(1,length(V),5))
         @test V isa Vector{Point3{Float64}}
+        @test length(V) == num_steps*length(Vc)
         @test isapprox(zMax,d,atol = eps_level) && isapprox(zMin,0.0,atol = eps_level)
         @test isapprox(V[ind],Point{3, Float64}[[0.9238795325112865, 0.3826834323650904, 0.0], [-0.38268343236509034, 0.9238795325112865, 0.75], [-1.0, -5.66553889764798e-16, 1.5], [2.83276944882399e-16, -1.0, 2.25], [1.0, 0.0, 3.0]],atol = eps_level)
     end
@@ -4518,6 +4553,20 @@ end
     @test invert_faces(F)==F_inv    
 end
 
+@testset "invert_faces!" begin
+    # Single face
+    F = TriangleFace{Int}[[1,2,3]]
+    F_inv = TriangleFace{Int}[[3,2,1]]
+    invert_faces!(F)
+    @test F == F_inv
+
+    # Two face
+    F = [TriangleFace{Int}(1, 2, 3),TriangleFace{Int}(4, 5, 6)]   
+    F_inv = [TriangleFace{Int}(3, 2, 1),TriangleFace{Int}(6, 5, 4)]   
+    invert_faces!(F)
+    @test F == F_inv   
+end
+
 @testset "kabsch_rot" begin
     eps_level = 1e-6
 
@@ -4623,7 +4672,6 @@ end
         @test isa(V,Vector{Point3{Float64}})        
     end
 end
-
 
 @testset "revolvecurve" verbose = true begin
     eps_level = 1e-6
@@ -4902,7 +4950,6 @@ end
     @test_throws Exception tridisc(r,n; ngon=6, method = :linear, orientation=:wrong) 
     
 end
-
 
 @testset "regiontrimesh" verbose = true begin  
     n1 = 120
@@ -6597,5 +6644,81 @@ end
     cap = true
     F,V = getisosurface(A; x = xr, y = yr, z = zr, level = level, cap = cap, padValue=1e8)            
     @test length(boundaryedges(F)) == 0 # Is merged/closed due to caps
+end
+
+
+@testset "randangle" verbose = true begin         
+    # Default input is 1 and should return Float64 
+    A = randangle()    
+    @test isa(A,Float64)    
+
+    # Vector 
+    len = 5
+    A = randangle(len)
+    @test isa(A,Vector{Float64})
+    @test length(A) == len
+
+    # Matrix
+    siz = (25,35)
+    A = randangle(siz)
+    @test isa(A,Matrix{Float64})
+    @test size(A) == siz
+    
+    # 3D Array 
+    siz = (5,4,3)
+    A = randangle(siz)
+    @test isa(A,Array{Float64,length(siz)})
+    @test size(A) == siz
+
+    # Check values are in the right range 
+    A = randangle(100000)
+    @test all(A.<=pi .&& A.>=-pi)    
+end
+
+
+@testset "stepfunc" verbose = true begin        
+    eps_level = 1e-8
+
+    t = [-10.0,0.0,0.1,0.25,0.5,0.75,0.9,1.0,10]    
+    a = 1.0
+    b = 3.0
+
+    fade = stepfunc(:Perlin)
+    v = fade.(a,b,t)
+    @test isa(v,Vector{Float64})
+    @test isapprox(v,[0.0, 0.0, 1.01712, 1.20703125, 2.0, 2.79296875, 2.9828799999999993, 1.0, 1.0],atol=eps_level)
+
+    fade = stepfunc(:linear)
+    v = fade.(a,b,t)
+    @test isa(v,Vector{Float64})
+    @test isapprox(v,[0.0, 0.0, 1.2000000000000002, 1.5, 2.0, 2.5, 2.8000000000000003, 1.0, 1.0],atol=eps_level)
+
+    fade = stepfunc(:smoothstep)
+    v = fade.(a,b,t)
+    @test isa(v,Vector{Float64})
+    @test isapprox(v,[0.0, 0.0, 1.056, 1.3125, 2.0, 2.6875, 2.944, 1.0, 1.0],atol=eps_level)
+
+    fade = stepfunc(:cosine)
+    v = fade.(a,b,t)
+    @test isa(v,Vector{Float64})
+    @test isapprox(v,[0.0, 0.0, 1.0489434837048466, 1.2928932188134523, 1.9999999999999998, 2.707106781186547, 2.9510565162951536, 1.0, 1.0],atol=eps_level)
+    
+    @test isa(fade,Function)  
+    @test_throws Exception stepfunc(:wrong)
+end
+
+@testset "perlin_noise" verbose = true begin        
+    eps_level = 1e-8
+
+    # Define grid
+    size_grid = (25,30) # grid size
+    sampleFactor = 30 # Pixel sample factor wrt grid
+    pixelSize = 1/sampleFactor # Pixel size assuming grid has unit steps
+
+    M = perlin_noise(size_grid, sampleFactor; type=:Perlin)
+
+    @test isa(M,Matrix{Float64})
+    @test size(M) == (size_grid .- 1) .* sampleFactor
+    @test_throws Exception perlin_noise(size_grid, sampleFactor; type=:wrong)
 end
 

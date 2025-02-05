@@ -1,8 +1,7 @@
 using Comodo
-using GLMakie
-using GeometryBasics
+using Comodo.GLMakie
+using Comodo.GeometryBasics
 using FileIO
-using LinearAlgebra
 
 testCase = 1
 
@@ -18,7 +17,7 @@ if testCase==1
     end
     push!(V,V[end]+[r, 0.0, 0.0])
 
-    F,V = extrudecurve(V; extent=1, direction=:positive, n=Vec{3, Float64}(0.0,0.0,-1.0), close_loop=false,face_type=:quad)
+    F,V = extrudecurve(V; extent=1, direction=:positive, n=Vec{3, Float64}(0.0,0.0,-3.0), close_loop=false,face_type=:quad)
 elseif testCase==2 
     # An imported STL based geometry of an engineering part with various flat faces and some known angles (e.g. 0, 45, and 90 degrees)
     fileName_mesh = joinpath(comododir(),"assets","stl","spur_gear_01.stl")
@@ -27,11 +26,6 @@ elseif testCase==2
     V = topoints(coordinates(M))
     F,V,_,_ = mergevertices(F,V)
 end
-
-# E = meshedges(F)
-# E_uni,_,indReverse = gunique(E; return_unique=true, return_index=true, return_inverse=true, sort_entries=true)        
-# con_E2F = con_edge_face(F,E_uni)
-# con_F2E = con_face_edge(F,E_uni,indReverse)   
 
 A,E,con_E2F = edgefaceangles(F,V; deg=true)
 
@@ -52,7 +46,7 @@ ax1 = Axis3(fig[1, 1], aspect = :data, xlabel = "X", ylabel = "Y", zlabel = "Z",
 hp1 = poly!(ax1,GeometryBasics.Mesh(V,F), color=:white, shading = FastShading, transparency=false)#,strokecolor=:black,strokewidth=0.25)
 # normalplot(ax1,F,V)
 
-hp_A = wireframe!(ax1,GeometryBasics.Mesh(Vn,En),linewidth=linewidth, transparency=false, color=An,colormap=:Spectral,colorrange = (-180, 180))
+hp_A = wireframe!(ax1,GeometryBasics.Mesh(Vn,En),linewidth=linewidth, transparency=false, color=An,colormap=:Spectral, colorrange = (-180, 180))
 
 Colorbar(fig[1, 2],hp_A, label = "Angles",ticks =-180:20:180)
 

@@ -1,23 +1,8 @@
-# Call required packages
-
-using GeometryBasics # For point and mesh format
-using LinearAlgebra # For things like dot and cross products
-using DataStructures # For unique_dict
-using Statistics # For: mean etc.
-using GLMakie # For slidercontrol
-using Rotations 
-using Interpolations # E.g. for resampling curves
-using BSplineKit # E.g. for resampling curves
-using QuadGK: quadgk # For numerical integration
-using Distances
-using DelaunayTriangulation # For triangular meshing
-using StaticArrays
-using TetGen # For tetrahedral meshing in tetgenmesh
-using MarchingCubes # For isosurface creation
-
 # Define types
 abstract type AbstractElement{N,T} <: StaticVector{N,T} end
+
 GeometryBasics.@fixed_vector Element = AbstractElement
+
 const Tet4{T} = Element{4,T} where T<:Integer
 const Tet10{T} = Element{10,T} where T<:Integer
 const Hex8{T} = Element{8,T} where T<:Integer
@@ -25,7 +10,6 @@ const Hex20{T} = Element{20,T} where T<:Integer
 const Penta6{T} = Element{6,T} where T<:Integer
 const Rhombicdodeca14{T} = Element{14,T} where T<:Integer
 const Truncatedocta24{T} = Element{24,T} where T<:Integer
-# const Truncatedocta24{T} = Element{24,T} where T<:Integer
 
 
 """
@@ -85,7 +69,7 @@ function slidercontrol(hSlider::Slider,ax::Union{Axis3, Figure, LScene})
     sliderRange = hSlider.range[] # Get slider range
     rangeLength = length(sliderRange) # Number of possible steps 
     sliderIndex = hSlider.selected_index[] # Current slider index
-    on(events(ax).keyboardbutton) do event
+    GLMakie.on(events(ax).keyboardbutton) do event
         if event.action == Keyboard.press || event.action == Keyboard.repeat # Pressed or held for instance            
             if event.key == Keyboard.up                                                  
                 if sliderIndex == rangeLength
@@ -221,7 +205,7 @@ function gridpoints_equilateral(xSpan::Union{Vector{TT},Tuple{TT,TT}},ySpan::Uni
     
     # Set up y-range
     pointSpacing_Y = pointSpacingReal_X.*0.5*sqrt(3) # Point spacing adjusted for equilateral triangles
-    if force_equilateral == true # Perfect equilateral grid needed, does not conform to span        
+    if force_equilateral # Perfect equilateral grid needed, does not conform to span        
         yRange = minY:pointSpacing_Y:maxY
     else # Approximate grid, conforms to span
         wy = maxY - minY        
@@ -253,7 +237,7 @@ function gridpoints_equilateral(xSpan::Union{Vector{TT},Tuple{TT,TT}},ySpan::Uni
     end
 
     # Creat output, including faces if requested
-    if return_faces == true
+    if return_faces 
         plateElem=[length(xRange)-1,length(yRange)-1]
         F = Vector{TriangleFace{Int}}(undef,prod(plateElem)*2)
         num_x = length(xRange)
@@ -345,7 +329,7 @@ function interp_biharmonic_spline(x::Union{Vector{T}, AbstractRange{T}},y::Union
     elseif  pad_data==:none
         # No padding
     else
-        throw(ArgumentError("Invalid pad_data method provided, valued options are :linear, :constant, and :none"))
+        throw(ArgumentError("Invalid pad_data method provided, valid options are :linear, :constant, and :none"))
     end
 
     # Change behaviour depending on extrapolation method
@@ -380,7 +364,7 @@ function interp_biharmonic_spline(x::Union{Vector{T}, AbstractRange{T}},y::Union
         # Allow extrapolation as per the biharmonic function
         yi = interp_biharmonic(xx,yy,xi) 
     else
-        error("InvalidParameter: Invalid extrapolate_method method provided, valued options are :linear, :constant, and :biharmonic")
+        error("InvalidParameter: Invalid extrapolate_method method provided, valid options are :linear, :constant, and :biharmonic")
     end
 
     return yi
@@ -580,7 +564,7 @@ end
 
 
 """
-    unique_dict_index(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+    unique_dict_index(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
 
 Returns unique values and indices
 
@@ -591,7 +575,7 @@ The optional parameter `sort_entries` (default is `false`) can be set to `true`
 if each entry in X should be sorted, this is helpful to allow the entry [1,2] to 
 be seen as the same as [2,1] for instance.  
 """
-function unique_dict_index(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+function unique_dict_index(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
     # Here a normal Dict is used to keep track of unique elements. Normal dicts do not maintain element insertion order. 
     # Hence the unique indices need to seperately be tracked. 
     # T = eltype(X)
@@ -613,7 +597,7 @@ end
 
 
 """
-    unique_dict_index_inverse(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+    unique_dict_index_inverse(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
 
 Returns unique values, indices, and inverse indices
 
@@ -625,7 +609,7 @@ The optional parameter `sort_entries` (default is `false`) can be set to `true`
 if each entry in X should be sorted, this is helpful to allow the entry [1,2] to 
 be seen as the same as [2,1] for instance.  
 """
-function unique_dict_index_inverse(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+function unique_dict_index_inverse(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
     # Here a normal Dict is used to keep track of unique elements. Normal dicts do not maintain element insertion order. 
     # Hence the unique indices need to seperately be tracked. 
     # T = eltype(X)
@@ -653,7 +637,7 @@ end
 
 
 """
-    unique_dict_index_count(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+    unique_dict_index_count(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
 
 Returns unique values, indices, and counts
 
@@ -665,7 +649,7 @@ The optional parameter `sort_entries` (default is `false`) can be set to `true`
 if each entry in X should be sorted, this is helpful to allow the entry [1,2] to 
 be seen as the same as [2,1] for instance.  
 """
-function unique_dict_index_count(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+function unique_dict_index_count(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
     # Here a normal Dict is used to keep track of unique elements. Normal dicts do not maintain element insertion order. 
     # Hence the unique indices need to seperately be tracked. 
     
@@ -695,7 +679,7 @@ end
 
 
 """
-    unique_dict_index_inverse_count(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+    unique_dict_index_inverse_count(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
 
 Returns unique values, indices, inverse indices, and counts
 
@@ -708,7 +692,7 @@ The optional parameter `sort_entries` (default is `false`) can be set to `true`
 if each entry in X should be sorted, this is helpful to allow the entry [1,2] to 
 be seen as the same as [2,1] for instance.  
 """
-function unique_dict_index_inverse_count(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+function unique_dict_index_inverse_count(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
     # Here a normal Dict is used to keep track of unique elements. Normal dicts do not maintain element insertion order. 
     # Hence the unique indices need to seperately be tracked. 
     # T = eltype(X)
@@ -740,7 +724,7 @@ end
 
 
 """
-    unique_dict_count(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+    unique_dict_count(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
 
 Returns unique values and counts
 
@@ -752,7 +736,7 @@ The optional parameter `sort_entries` (default is `false`) can be set to `true`
 if each entry in X should be sorted, this is helpful to allow the entry [1,2] to 
 be seen as the same as [2,1] for instance.  
 """
-function unique_dict_count(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any
+function unique_dict_count(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
     # Here a normal Dict is used to keep track of unique elements. Normal dicts do not maintain element insertion order. 
     # Hence the unique indices need to seperately be tracked. 
     # T = eltype(X)
@@ -778,7 +762,7 @@ end
 
 
 """
-    unique_dict_inverse(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any 
+    unique_dict_inverse(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
 
 Returns unique values and inverse indices
 
@@ -790,7 +774,7 @@ The optional parameter `sort_entries` (default is `false`) can be set to `true`
 if each entry in X should be sorted, this is helpful to allow the entry [1,2] to 
 be seen as the same as [2,1] for instance.  
 """
-function unique_dict_inverse(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any 
+function unique_dict_inverse(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N
     # Here a normal Dict is used to keep track of unique elements. Normal dicts do not maintain element insertion order. 
     # Hence the unique indices need to seperately be tracked. 
     # T = eltype(X)
@@ -846,7 +830,7 @@ end
 
 
 """
-    occursonce(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any    
+    occursonce(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N  
 
 Checks if entries occur once
 
@@ -857,7 +841,8 @@ parameter `sort_entries` (default is false) is true, then each entry will be
 sorted, in this case and entry [3,1,2] is viewed as the same as [1,3,2] and 
 [1,2,3] and so on. 
 """
-function occursonce(X::Union{Array{T},Tuple{T}}; sort_entries=false) where T <: Any    
+
+function occursonce(X::Union{Tuple{Vararg{T, N}}, Array{T, N}}; sort_entries=false) where T <: Any where N   
     d = Dict{T,Int}() # Use dict to keep track of used values    
     B = Vector{Bool}(undef,length(X)) 
     for (i,x) in enumerate(X)         
@@ -893,29 +878,29 @@ be seen as the same as [2,1] for instance.
 """
 function gunique(X; return_unique=true, return_index=false, return_inverse=false, return_counts=false, sort_entries=false)
     # Use required unique function 
-    if return_unique==true && return_index==false && return_inverse==false && return_counts==false
+    if return_unique && !return_index && !return_inverse && !return_counts
         # UNIQUE
         if sort_entries && length(X[1])>1
             return unique(sort.(X))
         else
             return unique(X)
         end
-    elseif return_unique==true && return_index==true && return_inverse==false && return_counts==false
+    elseif return_unique && return_index && !return_inverse && !return_counts
         # UNIQUE, INDICES
         return unique_dict_index(X; sort_entries=sort_entries)
-    elseif return_unique==true && return_index==false && return_inverse==false && return_counts==true
+    elseif return_unique && !return_index && !return_inverse && return_counts
         # UNIQUE, COUNTS
         return unique_dict_count(X; sort_entries=sort_entries)
-    elseif return_unique==true && return_index==false && return_inverse==true && return_counts==false
+    elseif return_unique && !return_index && return_inverse && !return_counts
         # UNIQUE, INVERSE
         return unique_dict_inverse(X; sort_entries=sort_entries)
-    elseif return_unique==true && return_index==true && return_inverse==true && return_counts==false
+    elseif return_unique && return_index && return_inverse && !return_counts
         # UNIQUE, INDICES, INVERSE
         return unique_dict_index_inverse(X; sort_entries=sort_entries)
-    elseif return_unique==true && return_index==true && return_inverse==false && return_counts==true
+    elseif return_unique && return_index && !return_inverse && return_counts
         # UNIQUE, INDICES, COUNTS
         return unique_dict_index_count(X; sort_entries=sort_entries)
-    elseif return_unique==true && return_index==true && return_inverse==true && return_counts==true
+    elseif return_unique && return_index && return_inverse && return_counts
         # UNIQUE, INDICES, INVERSE, COUNTS
         return unique_dict_index_inverse_count(X; sort_entries=sort_entries)
     end
@@ -1916,9 +1901,9 @@ function hemisphere(n::Int,r::T; face_type=:tri, closed=false) where T <: Real
     # Now cut off bottom hemisphere    
     searchTol = r./1000.0 # Tolerance for cropping hemisphere (safe, somewhat arbitrary if much smaller then mesh edge lengths)
     F = [F[i] for i in findall(map(f-> mean([V[j][3] for j in f])>=-searchTol,F))] # Remove faces below equator
-    F,V = remove_unused_vertices(F,V) # Cleanup/remove unused vertices after faces were removed
+    F,V,_ = remove_unused_vertices(F,V) # Cleanup/remove unused vertices after faces were removed
 
-    if closed==true 
+    if closed
         if face_type == :tri           
             Fb,Vb = tridisc(r,1; ngon=5, method=:linear, orientation=:down)
             Q = RotXYZ(0.0,0.0,pi/2.0) # Rotation matrix
@@ -1950,7 +1935,7 @@ function hemisphere(n::Int,r::T; face_type=:tri, closed=false) where T <: Real
                 F,V = subquad(F,V,1)                
             end
                         
-            if closed == true
+            if closed
                 indTopFaces = [j .+ i*nf  for i = 0:3 for j in indTopFaces]
                 indPush = Vector{Int}()
                 for f in F[indTopFaces]
@@ -2418,7 +2403,7 @@ function mergevertices(F::Vector{NgonFace{N,TF}},V::Vector{Point{ND,TV}}; roundV
 end
 
 function mergevertices(V::Vector{Point{ND,TV}}; roundVertices = true, pointSpacing=nothing, numDigitsMerge=nothing) where ND where TV<:Real
-    if roundVertices == true
+    if roundVertices
         if isnothing(numDigitsMerge) 
             # Compute numDigitsMerge from point spacing
             if isnothing(pointSpacing)
@@ -2563,7 +2548,7 @@ This function implements HC (Humphrey's Classes) smoothing [1]. This method uses
 Laplacian like smoothing but aims to compensate for shrinkage/swelling by also 
 "pushing back" towards the original coordinates. 
 
-# Reference 
+# References 
 1. [Vollmer et al., _Improved Laplacian Smoothing of Noisy Surface Meshes_, 1999. doi: 10.1111/1467-8659.00334](https://doi.org/10.1111/1467-8659.00334)
 """
 function smoothmesh_hc(F::Vector{NgonFace{N,TF}},V::Vector{Point{ND,TV}}, n=1, α=0.1, β=0.5; con_V2V=nothing, tolDist=nothing, constrained_points=nothing) where N where TF<:Integer where ND where TV<:Real
@@ -2777,12 +2762,15 @@ latter, triangles are formed by slashing the quads.
 - `V1::Vector`: n-vector 
 - `V2::Vector`: n-vector
 """
-function loftlinear(V1::Vector{Point{ND,TV}},V2::Vector{Point{ND,TV}};num_steps=nothing,close_loop=true,face_type=:quad) where ND where TV<:Real
+function loftlinear(V1::Vector{Point{ND,TV}}, V2::Vector{Point{ND,TV}}; num_steps=nothing, close_loop=true, face_type=:quad) where ND where TV<:Real
     # Derive num_steps from distance and mean curve point spacing if missing    
     if isnothing(num_steps)
         d = mean([norm(V1[i]-V2[i]) for i in eachindex(V1)])
         dp = 0.5* (pointspacingmean(V1)+pointspacingmean(V2))
-        num_steps = ceil(Int,d/dp)        
+        num_steps = ceil(Int,d/dp)                
+        if num_steps < 2
+            num_steps = 2
+        end
     end
 
     if num_steps < 2
@@ -3081,19 +3069,22 @@ function normalplot(ax,M::GeometryBasics.Mesh; type_flag=:face, color=:black,lin
     return normalplot(ax,F,V;type_flag=type_flag, color=color,linewidth=linewidth,scaleval=scaleval)
 end
 
-function edgeangles(F::Vector{NgonFace{N,TF}},V::Vector{Point{ND,TV}}) where N where TF<:Integer where ND where TV<:Real
-    m = length(F[1])
-    A = Vector{GeometryBasics.Vec{m, Float64}}()
-    for f in F
-        a = Vector{Float64}(undef,m)
-        for i in 1:m                        
-            ip1 = mod1(i+1,m)            
-            ip2 = mod1(i+2,m)
+function edgeangles(F::Vector{NgonFace{N,TF}},V::Vector{Point{ND,TV}}; deg=false) where N where TF<:Integer where ND where TV<:Real        
+    A = Vector{GeometryBasics.Vec{N, Float64}}(undef,length(F))
+    for (j,f) in enumerate(F)
+        a = Vector{Float64}(undef,N)
+        @inbounds for i in 1:N            
+            ip1 = mod1(i+1,N)            
+            ip2 = mod1(i-1,N)
             n1 = normalizevector(V[f[ip1]]-V[f[i]])
-            n2 = normalizevector(V[f[ip2]]-V[f[ip1]])
-            a[i] = acos(clamp(dot(n1,n2),-1.0,1.0))
-        end
-        push!(A,a)
+            n2 = normalizevector(V[f[ip2]]-V[f[i]])
+            if deg 
+                a[i] = acosd(clamp(dot(n1,n2),-1.0,1.0))
+            else
+                a[i] = acos(clamp(dot(n1,n2),-1.0,1.0))
+            end
+        end        
+        A[j] = a        
     end
     return A
 end
@@ -3133,7 +3124,7 @@ function quad2tri(F::Vector{QuadFace{TF}},V::Vector{Point{ND,TV}}; convert_metho
     return Ft
 end
 
-function remove_unused_vertices(F,V::Vector{Point{ND,TV}})::Tuple where ND where TV<:Real
+function remove_unused_vertices(F,V::Vector{Point{ND,TV}}) where ND where TV<:Real
     if isempty(F) # If the face set is empty, return all emtpy outputs
         Fc = F
         Vc = Vector{Point{ND,TV}}(undef,0)
@@ -3238,7 +3229,7 @@ function trisurfslice(F::Vector{TriangleFace{TF}},V::Vector{Point{ND,TV}},n = Ve
             end    
         end
     end    
-    Fn,Vn = remove_unused_vertices(Fn,Vn)
+    Fn,Vn,_ = remove_unused_vertices(Fn,Vn)
     return Fn,Vn,Cn
 end
 
@@ -3335,18 +3326,31 @@ function edges2curve(Eb::Vector{LineFace{T}}; remove_last = false) where T <: In
     if isempty(Eb)
         return Vector{T}[] # Return empty
     else
-        numEdges = length(Eb)
-        numMax = 2*numEdges # Max number of connected points is all points
-        con_E2E = con_edge_edge(Eb) # Edge-edge connectivity
+        numEdges = length(Eb)        
+        con_V2E = con_vertex_edge(Eb) # Vertex-edge connectivity
+        con_E2E = con_edge_edge(Eb,con_V2E) # Edge-edge connectivity
+        numConnectedEdges = length.(con_V2E)
+        indStartEnd = findall(numConnectedEdges .== 1)
+        if length(indStartEnd) == 2 # Non-closed curve           
+            if Eb[con_V2E[indStartEnd[1]][1]][1] == indStartEnd[1]
+                i = con_V2E[indStartEnd[1]][1]
+            else
+                i = con_V2E[indStartEnd[2]][1]
+            end
+        elseif length(indStartEnd) == 0 # Consistent with closed loop
+            i = 1
+        else
+            throw(ErrorException("Invalid edges. Edges may contain branches or multiple disconnected sets"))
+        end
+
         seen = fill(false,numEdges) # Bool to keep track of visited points
-        i = 1 # Start with first edge
         ind = [Eb[i][1]] # Add first edge point and grow this list
         while !all(seen) # loop until all edges have been visited        
             push!(ind,Eb[i][2]) # Add edge end point (start is already in list)
             seen[i] = true # Lable current edge as visited       
             e_ind = con_E2E[i] # Indices for connected edges
             if length(e_ind)>2 # Branch point detected
-                throw(ErrorException("Invalid edges or branch point detected."))    
+                throw(ErrorException("Invalid edges or branch point detected. Current edge is connected to more than two edges."))    
             else
                 if Eb[e_ind[1]][1]==ind[end] #Check if 1st point of 1st edge equals end
                     i = e_ind[1]
@@ -3356,7 +3360,7 @@ function edges2curve(Eb::Vector{LineFace{T}}; remove_last = false) where T <: In
             end
 
             if seen[i] & !all(seen)
-                throw(ErrorException("Invalid edges. Edges may contained multiple disconnected sets"))
+                throw(ErrorException("Invalid edges. Edges may contain multiple disconnected sets, such as multiple closed loops."))
             end            
         end
         if remove_last 
@@ -3445,6 +3449,9 @@ function extrudecurve(V1::Vector{Point{ND,TV}}; extent=1.0, direction=:positive,
         if face_type==:tri
             num_steps = num_steps + Int(iseven(num_steps)) # Force uneven
         end
+        if num_steps < 2
+            num_steps = 2
+        end
     end
 
     # Check if num_steps is okay
@@ -3457,7 +3464,7 @@ function extrudecurve(V1::Vector{Point{ND,TV}}; extent=1.0, direction=:positive,
         p = extent.*n
     elseif direction == :negative # Against n from V1
         p = -extent.*n
-        if close_loop == true
+        if close_loop 
             circshift!(reverse!(V1),1)
         else
             reverse!(V1)
@@ -3882,7 +3889,7 @@ function evenly_sample(V::Vector{Point{ND,TV}}, n::Int; rtol=1e-8, niter=1, spli
     S,_,D = make_geospline(V; rtol=rtol, niter=niter, spline_order=spline_order, close_loop=close_loop)
 
     # Even range for curve distance 
-    if close_loop == true        
+    if close_loop 
         l_end = D - D/n
     else
         l_end = D
@@ -3894,7 +3901,7 @@ end
 
 function make_geospline(V::Vector{Point{ND,TV}}; rtol = 1e-8, niter = 10, spline_order=4, close_loop=false) where ND where TV<:Real
     LL = curve_length(V) # Initialise as along curve (multi-linear) distance
-    if close_loop == true
+    if close_loop
         D = last(LL) + norm(V[1]-V[end])
         bc = BSplineKit.Periodic(D) # Use periodic bc for closed curves
     else
@@ -3911,7 +3918,7 @@ function make_geospline(V::Vector{Point{ND,TV}}; rtol = 1e-8, niter = 10, spline
             L[i] = L[i - 1] + integrate_segment_(dS,LL[i-1], LL[i],rtol)    
         end
         
-        if close_loop == true
+        if close_loop 
             D = last(L) + integrate_segment_(dS,LL[end], D,rtol)           
             bc = BSplineKit.Periodic(D)                   
         else
@@ -3948,7 +3955,7 @@ function evenly_space(V::Vector{Point{ND,TV}}, pointSpacing=nothing; rtol = 1e-8
     else
         # Check must point set
         m = length(V)        
-        if close_loop == false && last(must_points)!=m # Check if last needs to be added 
+        if !close_loop && last(must_points) != m # Check if last needs to be added 
             push!(must_points,m)
         else
             push!(must_points,1) # Add first to close over curve
@@ -3993,9 +4000,14 @@ This function inverts the faces in `F`, such that the face normal will be
 flipped, by reversing the node order for each face. 
 """
 function invert_faces(F::Vector{NgonFace{N, TF}}) where N where TF<:Integer     
-    return map(f-> reverse(f),F) # [NgonFace{N, Int}(reverse(f)) for f in F]    
+    return map(f-> reverse(f),F)     
 end
 
+function invert_faces!(F::Vector{NgonFace{N, TF}}) where N where TF<:Integer     
+    for (i,f) in enumerate(F)
+        F[i] = reverse(f)
+    end    
+end
 
 """
     R = kabsch_rot(V1::Array{Point{N, T}, 1},V2::Array{Point{N, TT}, 1}) where N where T<:Real where TT<:Real
@@ -4028,7 +4040,7 @@ function kabsch_rot(V1::Vector{Point{ND,TV1}},V2::Vector{Point{ND,TV2}}) where N
     d = det(U)*det(V) #sign(det(U'*V))
     D = [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
     D[3,3] = d 
-    return Rotations.RotMatrix3{Float64}(V*D*U')
+    return RotMatrix3{Float64}(V*D*U')
 end
 
 
@@ -4225,7 +4237,7 @@ function batman(n::Int; symmetric = false, dir=:acw)
         + 6.4 * sin( ( (π/2.0 + asin(47/53)) * ((abs(t-7.0) 
         - abs(t-8.0) + 1.0)/2.0) ) + asin(56/64) ) + 4.95 ) for t in tt]   
 
-    if symmetric == true    
+    if symmetric    
         if iseven(n)
             m = round(Int,n/2+1)
         else
@@ -4372,7 +4384,7 @@ end
 # Description
 
 Generates a multi-region triangle mesh for the input regions. The boundary 
-curves for all regions are containedin the tuple `VT`. Each region to be meshed
+curves for all regions are contained in the tuple `VT`. Each region to be meshed
 is next defined using a tuple `R` containing indices into the curve typle `VT`. 
 If an entry in `R` contains only one index then the entire curve domain is 
 meshed. If `R` contains multiple indices then the first index is assumed to be 
@@ -4586,7 +4598,7 @@ function dualclad(F::Vector{NgonFace{N, TF}},V::Vector{Point{ND,TV}},s; connecti
 
         if !isempty(Eb)
             Ebs,Vbs = scalesimplex(Eb,V,s)
-            Ebs,Vbs = remove_unused_vertices(Ebs,Vbs)
+            Ebs,Vbs,_ = remove_unused_vertices(Ebs,Vbs)
             Ebs = [e.+length(Vs) for e in Ebs]
             append!(Vs,Vbs) # Append boundary edge points 
         end
@@ -5331,14 +5343,14 @@ function filletcurve(V::Vector{Point{NV,TV}}; rMax::Union{Vector{T},T,Nothing}=n
                 l2 = L[i]     
                 if constrain_method == :max
                     if i==2
-                        if close_loop == true
+                        if close_loop
                             lp = L[end]/2
                         else
                             lp=0.0
                         end
                     end
                     if i == i_last
-                        if close_loop == true
+                        if close_loop
                             l3 = L[2]
                         else
                             l3 = 0 
@@ -5393,7 +5405,7 @@ function filletcurve(V::Vector{Point{NV,TV}}; rMax::Union{Vector{T},T,Nothing}=n
                         Vc = Vc[2:end] # Remove first point 
                     end   
 
-                    if close_loop == true && i == i_last && fullRound && isapprox(norm(Vc[end]-VC[1]),0.0,atol=eps_level)                        
+                    if close_loop && i == i_last && fullRound && isapprox(norm(Vc[end]-VC[1]),0.0,atol=eps_level)                        
                         # The end of the current segment is the same as the first point on the closed loop curve built
                         Vc = Vc[1:end-1] # Remove last point
                     end
@@ -5478,13 +5490,13 @@ Using `deg=true` results in angles in degrees.
 """
 function circlerange(n::Int; dir=:acw, deg=false)
     if dir==:acw
-        if deg == true
+        if deg 
             return range(0.0, 360 - 360/n, n)
         else
             return range(0.0, 2.0*π - (2.0*π)/n, n)
         end
     elseif dir==:cw
-        if deg == true
+        if deg 
             return range(0.0, 360/n - 360, n)
         else
             return range(0.0, (2.0*π)/n - 2.0*π, n)
@@ -5533,7 +5545,7 @@ function edgefaceangles(F::Vector{NgonFace{NF,TF}},V::Vector{Point{ND,TV}}; deg=
                 end
                 
                 # Compute the face angles 
-                if deg == true # Compute angles in degrees                       
+                if deg # Compute angles in degrees                       
                     A[i_e] = s*acosd(clamp(dot(n1,n2),-1.0,1.0))
                 else # Compute angles in radians
                     A[i_e] = s*acos(clamp(dot(n1,n2),-1.0,1.0))                         
@@ -5786,7 +5798,7 @@ function rhombicdodecahedronfoam(w::T,n::Union{Tuple{Vararg{Int, 3}}, Array{Int,
     end
     
     # merge vertices if requested
-    if merge == true
+    if merge
         V,_,indMap = mergevertices(V; pointSpacing=w)
         indexmap!(E,indMap)        
     end
@@ -5942,7 +5954,7 @@ function kelvinfoam(w::T,n::Union{Tuple{Vararg{Int, 3}}, Array{Int, 3}}; merge =
     end
       
     # merge vertices if requested
-    if merge == true
+    if merge 
         V,_,indMap = mergevertices(V; pointSpacing=w)
         indexmap!(E,indMap)        
     end
@@ -6202,7 +6214,6 @@ function tribox(boxDim,pointSpacing)
     return _faces2box(F12,V12,F22,V22,F32,V32,boxDim)
 end
 
-
 """
     _faces2box(F12,V12,F22,V22,F32,V32,boxDim)
 
@@ -6258,7 +6269,16 @@ function tetbox(boxDim,pointSpacing; stringOpt = "paAqYQ",region_vol=nothing)
     return E, V, Fb, Cb
 end
 
+"""
+    pad3(A::Array{T,3}; padAmount = 1, padValue = T(0.0)) where T<:Real
 
+Pads 3D array 
+
+# Description 
+This function pads the 3D input array `A` by the amount `padAmount` and with the
+value `padValue`. The output is an array that is 2*padAmount larger in size 
+direction. 
+"""
 function pad3(A::Array{T,3}; padAmount = 1, padValue = T(0.0)) where T<:Real
     siz = size(A) # Get size of A 
 
@@ -6282,9 +6302,17 @@ function pad3(A::Array{T,3}; padAmount = 1, padValue = T(0.0)) where T<:Real
     return B
 end
 
+"""
+    getisosurface(A; level=0.0, cap=false, padValue=nothing, x::Union{AbstractVector{T},Nothing}=nothing, y::Union{AbstractVector{T},Nothing}, z::Union{AbstractVector{T},Nothing}) where T<:Real  
 
+Constructs isosurface geometry 
+
+# Description 
+This function creates the triangular faces `F` and vertices `V` for an 
+isosurface in the 3D image `A` of the level specified by `level`. 
+"""
 function getisosurface(A; level=0.0, cap=false, padValue=nothing, x::Union{AbstractVector{T},Nothing}=nothing, y::Union{AbstractVector{T},Nothing}, z::Union{AbstractVector{T},Nothing}) where T<:Real  
-    if cap == true                
+    if cap                
         # Get/determine padValue  
         if isnothing(padValue)
             if isapprox(level,0.0,atol=1e-8)
@@ -6309,7 +6337,7 @@ function getisosurface(A; level=0.0, cap=false, padValue=nothing, x::Union{Abstr
             z = range(z[1]-s, z[end]+s, length(z)+2)                        
             mc = MarchingCubes.MC(A; x=x, y=y, z=z)            
         end
-    elseif cap==false
+    elseif !cap
         if isnothing(x) || isnothing(y) || isnothing(z)            
             mc = MarchingCubes.MC(A,Int)
         else
@@ -6322,4 +6350,158 @@ function getisosurface(A; level=0.0, cap=false, padValue=nothing, x::Union{Abstr
     return F,V
 end
 
+"""
+    randangle(siz::Union{Int,Tuple{Vararg{Int, N}}, Vector{Int}} = 1) where N
 
+Returns random angles
+
+# Description 
+This function returns a random angle or array of random angles of the size 
+`siz`. The angles are in radians and values lie between -pi and pi. 
+"""
+function randangle(siz::Union{Int,Tuple{Vararg{Int, N}}, Vector{Int}} = 1) where N
+    if siz == 1
+        return rand()*pi*rand((-1,1))
+    else
+        A = Array{Float64}(undef,siz)    
+        for i in eachindex(A)
+            A[i] = pi * rand() * rand((-1.0,1.0))
+        end
+        return A
+    end    
+end
+
+"""
+    stepfunc(type)
+
+Returns a step function
+
+# Description 
+This function returns a step function (such as smoothstep functions [1]) to move
+from a level `a` to `b` using the  function type specified by `type`. I.e. 
+`f = stepfunc(type)` can be used as: `y = f(a,b,t)`
+The functions are constrained such that the output is `a` if `t<=0.0` and the
+output is `b` when `t>=1.0`. Each function uses the following definition: 
+`(1.0 - f(t)) * a + f(t) * b`
+Where `f(t)` depends on the function type requested. The following types are
+supported: 
+    :linear, this is a simple linear mapping (lerp) from `a` to `b`
+    :Perlin, the Perlin smooth step function 6t⁵-15t⁴+10t³
+    :smoothstep, 6t²-2t³
+    :cosine, 2-cos(tπ)/2
+The default is :linear
+
+# References
+1. https://en.wikipedia.org/wiki/Smoothstep
+"""
+function stepfunc(type::Symbol=:linear)      
+    # Create inline function variations 
+    f = t -> t    
+    if type == :Perlin
+        f = t -> t^3 * (t * (6.0 * t - 15.0) + 10.0) # 6t⁵-15t⁴+10t³ 
+    elseif type == :smoothstep
+        f = t -> 3.0 * t^2 - 2.0 * t^3 
+    elseif type == :cosine
+        f = t -> 0.5 - 0.5 * cos(t*pi) 
+    elseif type == :linear
+        # Nothing, already default
+        # f = t -> t 
+    else        
+        error("InvalidParameter: Invalid type $type, valid options are :linear, :Perlin, :cosine, and :smoothstep")
+    end            
+    # Return function with constraints
+    return function (a, b, t)
+        if t <= 0.0
+            return 0.0
+        elseif t >= 1.0
+            return 1.0
+        else            
+            return (1.0 - f(t)) * a + f(t) * b
+        end
+    end
+end
+
+"""
+    perlin_noise(size_grid, sampleFactor, type=:Perlin)    
+
+Returns Perlin noise array
+
+# Description 
+This function returns a 2D image containing Perlin noise [1]. The grid size is 
+defined by `size_grid`. The `sampleFactor` defines the number of pixels to use 
+for each grid cell. The output is a Matrix{Float64} with the size
+`(size_grid .- 1) .* sampleFactor`. The `type` parameter dictates the type of 
+"fade" function to use (see also: `stepfunc`), and the default is :Perlin. 
+
+# References
+1. https://en.wikipedia.org/wiki/Perlin_noise
+"""
+function perlin_noise(size_grid, sampleFactor; type=:Perlin)        
+    pixelSize = 1/sampleFactor # Pixel size assuming grid has unit steps
+
+    # Create grid vectors 
+    A = randangle(size_grid) # Random angles    
+    Ux = cos.(A) # Unit vector x-component
+    Uy = sin.(A) # Unit vector y-component
+
+    # Define "fade"/smoothstep function for interpolation 
+    fade = stepfunc(type)
+
+    # Initialise image
+    size_image = (size_grid .- 1) .* sampleFactor # image size
+    M = Matrix{Float64}(undef,size_image) # Start as undef Float64
+
+    # Pre-compute grid cell quantities
+    xy = range(0+pixelSize/2,1-pixelSize/2,sampleFactor) # x or y coordinates within a grid cell
+
+    xc = [0,1,1,0]
+    yc = [0,0,1,1]
+    @inbounds for ip in 1:sampleFactor # For each cell row
+        @inbounds for jp in 1:sampleFactor # For each cell column
+            @inbounds for ig in 1:size_grid[1]-1 # For each grid row    
+                @inbounds for jg in 1:size_grid[2]-1 # For each grid column
+                    i = (ig-1)*sampleFactor + ip # Pixel row index
+                    j = (jg-1)*sampleFactor + jp # Pixel column index
+                    
+                    # Current pixel cell coordinates
+                    px = xy[jp]
+                    py = xy[ip]
+                            
+                    # Offset vector components
+                    xc1 = px # -xc[1] Offset vector 1 x
+                    xc2 = px-xc[2] # Offset vector 2 x
+                    xc3 = px-xc[3] # Offset vector 3 x
+                    xc4 = px-xc[4] # Offset vector 4 x
+
+                    yc1 = py # -yc[2] Offset vector 1 y                
+                    yc2 = py-yc[2] # Offset vector 2 y               
+                    yc3 = py-yc[3] # Offset vector 3 y                
+                    yc4 = py-yc[4] # Offset vector 4 y
+
+                    u1x = Ux[ig  , jg]
+                    u2x = Ux[ig  , jg+1]
+                    u3x = Ux[ig+1, jg+1]
+                    u4x = Ux[ig+1, jg]
+
+                    u1y = Uy[ig  ,jg]
+                    u2y = Uy[ig  ,jg+1]
+                    u3y = Uy[ig+1,jg+1]
+                    u4y = Uy[ig+1,jg]
+
+                    d1 = xc1.*u1x + yc1.*u1y
+                    d2 = xc2.*u2x + yc2.*u2y
+                    d3 = xc3.*u3x + yc3.*u3y
+                    d4 = xc4.*u4x + yc4.*u4y
+            
+                    # Interpolation using fade function 
+                    d12 = fade(d1,   d2, px)
+                    d34 = fade(d4,   d3, px)
+                    d   = fade(d12, d34, py)
+
+                    M[i,j] = d                
+                end
+            end
+        end
+    end
+    return M
+end
