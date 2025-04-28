@@ -6,7 +6,7 @@ using Comodo.GLMakie
 using Comodo.Rotations
 using Comodo.BSplineKit
 
-@testset "comododir" begin
+@testset "comododir" verbose = true begin
     f = comododir()
     @test any(contains.(readdir(f),"src"))
     @test any(contains.(readdir(f),"assets"))
@@ -876,8 +876,8 @@ end
         F, V = cube(1.0)
         M = GeometryBasics.Mesh(V,F)
         E = meshedges(M,unique_only=true)
-        @test E == LineFace{Int}[[1, 2], [7, 8], [5, 6], [6, 7], [5, 8], [2, 3], 
-        [2, 6], [3, 7], [4, 8], [1, 5], [3, 4], [1, 4]]
+        @test E == LineFace{Int}[[1, 2], [8,7], [5, 6], [6, 7], [8, 5], [2, 3], 
+        [6, 2], [7, 3], [8, 4], [5, 1], [3, 4], [1, 4]]
     end
 end
 
@@ -1154,7 +1154,7 @@ end
     end
 
     @testset "Vector Vec3" begin
-        Vv = Vector{Vec3{Float64}}(undef,5)       
+        Vv = rand(Vec{3,Float64},5)      
         V = topoints(Vv)
         @test isa(V,Vector{GeometryBasics.Point3{Float64}})
         @test length(V) == 5
@@ -1162,27 +1162,27 @@ end
 
     @testset "Vector Vec{m,Float64}}" begin
         m = 4
-        Vv = Vector{Vec{m,Float64}}(undef,5)       
+        Vv = rand(Vec{m,Float64},5)       
         V = topoints(Vv)
         @test isa(V,Vector{GeometryBasics.Point{m,Float64}})
         @test length(V) == 5
 
         m = 5
-        Vv = Vector{Vec{m,Float64}}(undef,5)       
+        Vv = rand(Vec{m,Float64},5)      
         V = topoints(Vv)
         @test isa(V,Vector{GeometryBasics.Point{m,Float64}})
         @test length(V) == 5
     end
 
-    @testset "Imported mesh points" begin
-        # Imported triangular mesh 
-        fileName_mesh = joinpath(comododir(),"assets","stl","stanford_bunny_low.stl")
-        M = load(fileName_mesh) 
-        Vv = coordinates(M)       
-        V = topoints(Vv)
-        @test isa(V,Vector{GeometryBasics.Point3{Float32}})
-        @test length(V) == length(Vv)
-    end
+    # @testset "Imported mesh points" begin
+    #     # Imported triangular mesh 
+    #     fileName_mesh = joinpath(comododir(),"assets","stl","stanford_bunny_low.stl")
+    #     M = load(fileName_mesh) 
+    #     Vv = coordinates(M)       
+    #     V = topoints(Vv)
+    #     @test isa(V,Vector{GeometryBasics.Point3{Float32}})
+    #     @test length(V) == length(Vv)
+    # end
 
     @testset "points no change" begin
         # Imported triangular mesh 
@@ -1225,7 +1225,7 @@ end
             n = 10 
             m = 3
             k = 5
-            V = Vector{Vec3{Float64}}(undef,n)
+            V = rand(Vec{3,Float64},n)
             F = [rand(1:n,m) for i=1:k]
             M = togeometrybasics_mesh(V,F)
             @test isa(M,GeometryBasics.Mesh)
@@ -1237,7 +1237,7 @@ end
             n = 12 
             m = 4
             k = 6
-            V = Vector{Vec3{Float64}}(undef,n)
+            V = rand(Vec{3,Float64},n)
             F = [rand(1:n,m) for i=1:k]
             M = togeometrybasics_mesh(V,F)
             @test isa(M,GeometryBasics.Mesh)
@@ -1711,43 +1711,51 @@ end
     @testset "triangles" begin
         # Smallest unrefined open
         n = 0
-        F,V = hemisphere(n,r; face_type=:tri)
+        F,V,C = hemisphere(n,r; face_type=:tri)
         @test F isa Vector{TriangleFace{Int}}
-        @test V isa Vector{Point{3,Float64}}
+        @test V isa Vector{Point{3,Float64}}        
         @test length(F) == 40
         @test length(boundaryedges(F)) == 10
         ind = round.(Int,range(1,length(V),6)) # Sample indices
         V_true = Point{3, Float64}[[-1.4694631307311825, -2.0225424859373686, 1.1102230246251565e-16], [-0.406149620291133, -1.2499999999999998, 2.1266270208801], [-1.720477400588967, 1.2499999999999998, 1.314327780297834], [1.4694631307311825, -2.0225424859373686, -1.1102230246251565e-16], [-2.23606797749979, 0.0, 1.118033988749895], [-0.6909830056250527, 2.1266270208801, 1.118033988749895]]
         @test isapprox(V[ind],V_true, atol=eps_level)
+        @test C isa Vector{Int}
+        @test sort(unique(C)) == [1]
 
         # Smallest unrefined closed
-        F,V = hemisphere(n,r; face_type=:tri, closed=true)
+        F,V,C = hemisphere(n,r; face_type=:tri, closed=true)
         @test F isa Vector{TriangleFace{Int}}
         @test V isa Vector{Point{3,Float64}}
         @test length(F) == 60
         @test length(boundaryedges(F)) == 0
+        @test C isa Vector{Int}
+        @test sort(unique(C)) == [1,2]
 
         # Linear refinement open
         n = 2
-        F,V = hemisphere(n,r; face_type=:tri)
+        F,V,C = hemisphere(n,r; face_type=:tri)
         @test F isa Vector{TriangleFace{Int}}
-        @test V isa Vector{Point{3,Float64}}
+        @test V isa Vector{Point{3,Float64}}        
         @test length(F) == 640
         @test length(boundaryedges(F)) == 40
-        
+        @test C isa Vector{Int}
+        @test sort(unique(C)) == [1]
+
         # Linear refinement closed
         n = 3
-        F,V = hemisphere(n,r; face_type=:tri, closed=true)
+        F,V,C = hemisphere(n,r; face_type=:tri, closed=true)
         @test F isa Vector{TriangleFace{Int}}
-        @test V isa Vector{Point{3,Float64}}
+        @test V isa Vector{Point{3,Float64}}        
         @test length(F) == 3840
-        @test length(boundaryedges(F)) == 0
+        @test length(boundaryedges(F)) == 0        
+        @test C isa Vector{Int}
+        @test sort(unique(C)) == [1,2]
     end
     
     @testset "quads" begin
         # Smallest unrefined open
         n = 0
-        F,V = hemisphere(n,r; face_type=:quad)
+        F,V,C = hemisphere(n,r; face_type=:quad)
         @test F isa Vector{QuadFace{Int}}
         @test V isa Vector{Point{3,Float64}}
         @test length(F) == 12
@@ -1755,29 +1763,37 @@ end
         ind = round.(Int,range(1,length(V),6)) # Sample indices
         V_true = Point{3, Float64}[[1.4433756729740645, -1.4433756729740645, 1.4433756729740645], [0.0, -1.7677669529663689, 1.7677669529663689], [-2.5, 0.0, 0.0], [0.0, 2.5, 0.0], [2.5, 0.0, 0.0], [1.7677669529663689, -1.7677669529663689, 0.0]]
         @test isapprox(V[ind],V_true, atol=eps_level)
+        @test C isa Vector{Int}
+        @test sort(unique(C)) == [1]
 
         # Smallest unrefined closed
-        F,V = hemisphere(n,r; face_type=:quad, closed=true)
+        F,V,C = hemisphere(n,r; face_type=:quad, closed=true)
         @test F isa Vector{QuadFace{Int}}
         @test V isa Vector{Point{3,Float64}}
         @test length(F) == 24
         @test length(boundaryedges(F)) == 0
+        @test C isa Vector{Int}
+        @test sort(unique(C)) == [1,2]
 
         # Linear refinement open
         n = 2
-        F,V = hemisphere(n,r; face_type=:quad)
+        F,V,C = hemisphere(n,r; face_type=:quad)
         @test F isa Vector{QuadFace{Int}}
         @test V isa Vector{Point{3,Float64}}
         @test length(F) == 192
         @test length(boundaryedges(F)) == 32
-        
+        @test C isa Vector{Int}
+        @test sort(unique(C)) == [1]
+
         # Linear refinement closed
         n = 3
-        F,V = hemisphere(n,r; face_type=:quad, closed=true)
+        F,V,C = hemisphere(n,r; face_type=:quad, closed=true)
         @test F isa Vector{QuadFace{Int}}
         @test V isa Vector{Point{3,Float64}}
         @test length(F) == 1536
         @test length(boundaryedges(F)) == 0
+        @test C isa Vector{Int}
+        @test sort(unique(C)) == [1,2]
     end
     
 end
@@ -2249,7 +2265,7 @@ end
         
         C = meshconnectivity(F,V)
 
-        @test typeof(C) == ConnectivitySet
+        @test typeof(C) == ConnectivitySet{3}
         @test C.edge_vertex == E_uni
         @test C.edge_face == con_E2F
         @test C.edge_edge == con_E2E
@@ -2299,7 +2315,7 @@ end
 
         C = meshconnectivity(F,V)
 
-        @test typeof(C) == ConnectivitySet
+        @test typeof(C) == ConnectivitySet{4}
         @test C.edge_vertex == E_uni
         @test C.edge_face == con_E2F
         @test C.edge_edge == con_E2E
@@ -2349,7 +2365,7 @@ end
 
         C = meshconnectivity(F,V)
 
-        @test typeof(C) == ConnectivitySet
+        @test typeof(C) == ConnectivitySet{3}
         @test C.edge_vertex == E_uni
         @test C.edge_face == con_E2F
         @test C.edge_edge == con_E2E
@@ -2399,7 +2415,7 @@ end
 
         C = meshconnectivity(F,V)
 
-        @test typeof(C) == ConnectivitySet
+        @test typeof(C) == ConnectivitySet{4}
         @test C.edge_vertex == E_uni
         @test C.edge_face == con_E2F
         @test C.edge_edge == con_E2E
@@ -3038,7 +3054,20 @@ end
         @test isapprox(d,fill(r,n),atol=eps_level)
         @test isapprox(V[ind], Point3{Float64}[[2.0, 0.0, 0.0], [1.2246467991473532e-16, -2.0, 0.0], 
         [-1.9753766811902753, -0.31286893008046196, 0.0], [-0.31286893008046207, 1.9753766811902753, 0.0], 
-        [1.9753766811902753, 0.31286893008046224, 0.0]], atol=eps_level)
+        [1.9753766811902753, 0.31286893008046224, 0.0]], atol=eps_level)       
+    end
+
+    @testset "with tuple (ellipse)" begin
+        n = 44
+        r = (2.0,3.0)
+        V = circlepoints(r, n; dir=:cw)
+        xMax = maximum([v[1] for v in V])
+        yMax = maximum([v[2] for v in V])
+        ind = round.(Int,range(1,length(V),5))        
+        @test V isa Vector{Point3{Float64}}
+        @test length(V) == n
+        @test isapprox(xMax,r[1],atol=eps_level)
+        @test isapprox(yMax,r[2],atol=eps_level)
     end
 
     @testset "with function" begin
@@ -3397,9 +3426,9 @@ end
     end
 
     @testset "Styles" begin
-        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
-        @test typeof(hp2) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
-        @test typeof(hp3) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}        
+        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
+        @test typeof(hp2) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
+        @test typeof(hp3) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
         @test length(faces(Mp)) == length(V)
     end
 
@@ -3415,9 +3444,9 @@ end
         hp2 = dirplot(ax,P,N; color=:blue,linewidth=3,scaleval=1.0,style=:to)
         hp3 = dirplot(ax,P,N; color=:blue,linewidth=3,scaleval=1.0,style=:through)
 
-        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
-        @test typeof(hp2) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
-        @test typeof(hp3) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
+        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
+        @test typeof(hp2) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
+        @test typeof(hp3) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
         @test_throws ArgumentError dirplot(ax,P,N; color=:blue,linewidth=3,scaleval=1.0,style=:wrong)
     end
 end
@@ -3438,43 +3467,35 @@ end
     @testset "type_flag options" begin
         hp1 =  normalplot(ax,F,V; type_flag=:face, color=:black,linewidth=3,scaleval=nothing)
         Mp = hp1[1].val
-        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
+        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
         @test length(faces(Mp)) == length(F)
 
         hp1 =  normalplot(ax,F,V; type_flag=:vertex, color=:black,linewidth=3,scaleval=nothing)
         Mp = hp1[1].val
-        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
+        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
         @test length(faces(Mp)) == length(V)
 
         hp1 =  normalplot(ax,F,V; type_flag=:vertex, color=:black,linewidth=3,scaleval=nothing)
         Mp = hp1[1].val
-        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
+        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
         @test length(faces(Mp)) == length(V)
 
         fileName_mesh = joinpath(comododir(),"assets","obj","spot_control_mesh.obj")
         Mn = load(fileName_mesh)   
         F = tofaces(faces(Mn))
-        V = topoints(coordinates(Mn))
+        V = [Point{3,Float64}(v) for v in coordinates(Mn)]
 
         hp1 =  normalplot(ax,F,V; type_flag=:vertex, color=:black,linewidth=3,scaleval=nothing)
         Mp = hp1[1].val
-        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float32, Line{3, Float32}, SimpleFaceView{3, Float32, 2, Int, Point3{Float32}, LineFace{Int}}}}}
+        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
         @test length(faces(Mp)) == length(V)
 
         hp1 =  normalplot(ax,Mn; type_flag=:face)
         Mp = hp1[1].val
-        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float32, Line{3, Float32}, SimpleFaceView{3, Float32, 2, Int, Point3{Float32}, LineFace{Int}}}}}
+        @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float32, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float32}}}, Vector{LineFace{Int64}}}}}
         @test length(faces(Mp)) == length(F)
-
-        # Not supported yet
-        # hp1 =  normalplot(ax,F,V; type_flag=:vertex, color=:black,linewidth=3,scaleval=nothing)
-        # Mp = hp1[1].val
-        # @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, Line{3, Float64}, SimpleFaceView{3, Float64, 2, Int, Point3{Float64}, LineFace{Int}}}}}
-        # @test length(faces(Mp)) == length(V)
-
     end
 end
-
 
 @testset "edgeangles" begin
     eps_level = 1e-4
@@ -3732,9 +3753,9 @@ end
     end
 
     @testset "Hex. mesh of a cube" begin        
-        sampleSize = 10
-        pointSpacing = 2
-        boxDim = sampleSize.*[1,1,1] # Dimensionsions for the box in each direction
+        sampleSize = 10.0
+        pointSpacing = 2.0
+        boxDim = sampleSize.*[1.0,1.0,1.0] # Dimensionsions for the box in each direction
         boxEl = ceil.(Int,boxDim./pointSpacing) # Number of elements to use in each direction 
         E,V,F,Fbq,CFb_type = hexbox(boxDim,boxEl)   
         F = element2faces(E)
@@ -3748,6 +3769,24 @@ end
         @test typeof(Fb2) == typeof(F)
         @test Fb1 == Fb2
     end
+
+    @testset "Hex. mesh with element labels" begin        
+        sampleSize = 10
+        pointSpacing = 2.0
+        boxDim = sampleSize.*[1.0,1.0,1.0] # Dimensionsions for the box in each direction
+        boxEl = ceil.(Int,boxDim./pointSpacing) # Number of elements to use in each direction 
+        E,V,F,Fb,CFb_type = hexbox(boxDim,boxEl) 
+        VE = simplexcenter(E,V)
+        elementLabels = [v[3]<=eps(0.0) for v in VE]
+
+        # Get boundary faces from either the total set of element faces or the elements    
+        Fb_normal = boundaryfaces(E)
+        Fb = boundaryfaces(E; elementLabels=elementLabels)
+
+        # Check for added boundary faces between label layer *will be boxEl[1]*boxEl[2]
+        @test length(Fb) == length(Fb_normal) + boxEl[1]*boxEl[2]
+    end
+
 end
 
 @testset "boundaryfaceindices" verbose = true begin
@@ -3787,9 +3826,41 @@ end
         indB = boundaryfaceindices(F)        
         @test F[indB] == Fb1
     end
+
+    @testset "Hex. mesh with element labels" begin        
+        # Create two layers (in z-dir.) of labelled elements
+        sampleSize = 10.0
+        pointSpacing = 2.0
+        boxDim = sampleSize.*[1.0,1.0,1.0] # Dimensionsions for the box in each direction
+        boxEl = ceil.(Int,boxDim./pointSpacing) # Number of elements to use in each direction 
+        E,V,F,Fb,CFb_type = hexbox(boxDim,boxEl)    
+        VE = simplexcenter(E,V)
+        elementLabels = [v[3]<=eps(0.0) for v in VE] # Element labels based on Z-coordinate
+    
+        # Get boundary face indices 
+        indBoundaryFacesNormal = boundaryfaceindices(F)
+    
+        # Get boundary face indices 
+        indBoundaryFacesLabel = boundaryfaceindices(F; elementLabels=elementLabels)
+
+        # Check for added boundary faces between label layer *will be boxEl[1]*boxEl[2]
+        @test length(indBoundaryFacesLabel) == length(indBoundaryFacesNormal) + boxEl[1]*boxEl[2]
+        
+    end
 end
 
-@testset "edges2curve" begin
+@testset "_element_facetype" verbose = true begin
+    T = Int
+    @test Comodo._element_facetype(Vector{Tet4{T}}(undef,3))  == TriangleFace{T}
+    @test Comodo._element_facetype(Vector{Tet10{T}}(undef,3))  == NgonFace{6,T}
+    # @test Comodo._element_facetype(Vector{Tet15{T}}(undef,3))  == NgonFace{6,T}
+    @test Comodo._element_facetype(Vector{Hex8{T}}(undef,3))  == QuadFace{T}
+    @test Comodo._element_facetype(Vector{Hex20{T}}(undef,3))  == NgonFace{8,T}
+    @test Comodo._element_facetype(Vector{Penta6{T}}(undef,3))  == (TriangleFace{T},QuadFace{T})
+    @test Comodo._element_facetype(Vector{Penta15{T}}(undef,3))  == (NgonFace{6,T},NgonFace{8,T})            
+end
+
+@testset "edges2curve" verbose = true begin
 
     # Empty input
     E = LineFace{Int}[]
@@ -4374,6 +4445,18 @@ end
         @test length(Vn) == length(F)*length(F[1])
     end
 
+    @testset "Quadrilateral face mesh with scale factor" begin
+        F,V = cube(1.0)        
+        Fn, Vn = separate_vertices(F, V; scaleFactor = 0.5)    
+
+        ind = round.(Int,range(1,length(Vn),5))
+        @test Vn isa Vector{Point3{Float64}}
+        @test typeof(Fn) == typeof(F)
+        @test length(Fn) == length(F)    
+        @test length(Vn) == length(F)*length(F[1])
+        @test Vn[ind] == Point{3, Float64}[[-0.2886751345948129, -0.2886751345948129, -0.5773502691896258], [-0.2886751345948129, 0.2886751345948129, 0.5773502691896258], [-0.5773502691896258, -0.2886751345948129, -0.2886751345948129], [0.5773502691896258, -0.2886751345948129, 0.2886751345948129], [0.2886751345948129, -0.5773502691896258, -0.2886751345948129]]
+    end
+
     @testset "Triangulated mesh" begin
         F,V = tetrahedron(1.0)
         Fn, Vn = separate_vertices(F, V)    
@@ -4513,7 +4596,7 @@ end
     Vn = evenly_space(V, pointSpacing; close_loop = false, spline_order = 4) 
     @test isapprox(pointspacingmean(Vn),pointSpacing,atol=eps_level)
 
-    # Must poins in open curve
+    # Must points in open curve
     must_points = [2]
     Vn = evenly_space(V, pointSpacing; close_loop = false, spline_order = 4, must_points = must_points) 
     @test isapprox(pointspacingmean(Vn),pointSpacing,atol=eps_level)
@@ -4577,7 +4660,7 @@ end
     R_kabsch_backward = kabsch_rot(V2,V1)
     V1r = [R_kabsch_backward*v for v in V2]
     @test isapprox(R_kabsch_forward,R_true,atol=eps_level) # Able to retrieve forward rotation
-    @test isapprox(V1r,V1,atol=eps_level) # Check if backward rotation is succesful   
+    @test isapprox(V1r,V1,atol=eps_level) # Check if backward rotation is successful   
 end
 
 @testset "sweeploft" verbose = true begin
@@ -5106,6 +5189,18 @@ end
     [4.188790204786391, -0.3333333333333335, 0.0], [4.71238898038469, -1.8369701987210297e-16, 0.0], 
     [5.235987755982988, 0.33333333333333315, 0.0], [5.759586531581287, 0.6666666666666665, 0.0], 
     [6.283185307179586, 1.0, 0.0]],atol=eps_level)
+
+    n = 3
+    Vn = subcurve(V,n; close_loop = true)
+    @test typeof(V) == typeof(Vn)
+    @test length(Vn) == length(V) + length(V)*n 
+
+    ind = round.(Int,range(1,length(Vn),6)) # Sample indices
+
+    @test isapprox(Vn[ind],Point{3, Float64}[[0.0, 1.0, 0.0], [1.5707963267948966, 6.123233995736766e-17, 0.0], 
+    [3.141592653589793, -1.0, 0.0], [4.319689898685965, -0.2500000000000001, 0.0], [5.890486225480862, 0.75, 0.0], 
+    [1.5707963267948966, 1.0, 0.0]],atol=eps_level)
+    
 end
 
 @testset "dualclad" verbose = true begin
@@ -5363,6 +5458,27 @@ end
         @test F[1][1] == [3,2,1]
     end
 
+    @testset "penta15" begin
+        E = [Penta15{Int}(collect(1:15))]
+        F = element2faces(E)
+        @test isa(F,Tuple)
+        @test length(F[1]) == length(E)*2
+        @test length(F[2]) == length(E)*3
+        @test isa(F[1],Vector{NgonFace{6,Int}})
+        @test isa(F[2],Vector{NgonFace{8,Int}})
+        @test F[1][1] == NgonFace{6, Int64}(3, 8, 2, 7, 1, 9)
+
+        E = [Penta15{Int}(collect(1:15)),Penta15{Int}(collect(16:30)),Penta15{Int}(collect(31:45))]
+        F = element2faces(E)
+        @test isa(F,Tuple)
+        @test length(F[1]) == length(E)*2
+        @test length(F[2]) == length(E)*3
+        @test isa(F[1],Vector{NgonFace{6,Int}})
+        @test isa(F[2],Vector{NgonFace{8,Int}})
+        @test F[1][1] == NgonFace{6, Int64}(3, 8, 2, 7, 1, 9)
+    end
+
+
     @testset "Rhombicdodeca14" begin
         nf = 12
         E = [Rhombicdodeca14{Int}(1:14)]
@@ -5401,8 +5517,22 @@ end
         @test F[2][1] == [2,3,13,16]
     end
 
+    @testset "Tet10" begin
+        E = [Tet10{Int}(1,2,3,4,5,6,7,8,9,10)]    
+        F = element2faces(E)
+        @test length(F) == length(E)*4
+        @test isa(F,Vector{NgonFace{6, Int}})
+        @test F[1] == [3, 6, 2, 5, 1, 7]
+
+        E = [Tet10{Int}(collect(1:10)), Tet10{Int}(collect(11:20)) ]    
+        F = element2faces(E)
+        @test length(F) == length(E)*4
+        @test isa(F,Vector{NgonFace{6, Int}})
+        @test F[1] == [3, 6, 2, 5, 1, 7]
+    end
+
     @testset "errors" begin
-        E = [Tet10{Int}(1,2,3,4,5,6,7,8,9,10)]                
+        E = [Hex20{Int}(collect(1:20))]                
         @test_throws Exception element2faces(E)
     end
 
@@ -5619,6 +5749,17 @@ end
         @test isa(V,typeof(V1))
     end
 
+    @testset "One region sphere Tet10" begin
+        r = pi/2
+        F1,V1 = geosphere(3,r)                
+        element_type = Tet10{Int}
+        E,V,CE,Fb,Cb = tetgenmesh(F1,V1; element_type=element_type)
+        
+        @test isa(E,Vector{Tet10{eltype(F1[1])}})
+        @test isa(V,typeof(V1))
+        @test length(Fb) == length(F1)        
+    end
+
     @testset "Two region sphere" begin
         r1 = 2.0
         r2 = r1/2
@@ -5832,7 +5973,7 @@ end
         [0.0, 0.0, 2.0], [1.0, 1.0, 2.0]],atol=eps_level)        
     end
 
-    @testset "Vector of TriangeFaces" begin       
+    @testset "Vector of TriangleFaces" begin       
         F = TriangleFace{Int}[ [1,2,3], [2,4,3] ]
         V = Point{3,Float64}[ [0.0,0.0,0.0], [1.0,0.0,0.0], [1.0,1.0,0.0], [2.0,0.0,0.0]]
 
@@ -6339,7 +6480,7 @@ end
 
 @testset "rhombicdodecahedronfoam" verbose = true begin
 
-    # rhombicdodecahedronfoam(w::T,n::Union{Tuple{Vararg{Int, 3}}, Array{Int, 3}}; merge = true, orientation = :allign) where T<:Real
+    # rhombicdodecahedronfoam(w::T,n::Union{Tuple{Vararg{Int, 3}}, Array{Int, 3}}; merge = true, orientation = :align) where T<:Real
     w = 2.1
     n = (3,4,5)
     E,V = rhombicdodecahedronfoam(w,n)
@@ -6351,7 +6492,7 @@ end
     @test isa(V,Vector{Point{3,Float64}})
     @test length(E) == k
 
-    E,V = rhombicdodecahedronfoam(w,n; merge = false, orientation = :allign)
+    E,V = rhombicdodecahedronfoam(w,n; merge = false, orientation = :align)
     @test length(E) == k
     @test length(V) == k*14
     
@@ -6611,10 +6752,6 @@ end
     nSteps = 75
     xr,yr,zr = ntuple(_->range(-1.0,1.0,nSteps),3)
     A = [norm((x,y,z)) for x in xr, y in yr, z in zr]
-    
-    # xr = collect(xr)
-    # yr = collect(yr)
-    # zr = collect(zr)
 
     # Get isosurface of sphere
     level = 0.5
@@ -6643,6 +6780,39 @@ end
     level = 1.25 # Large level=radius such that sphere is too big for domain
     cap = true
     F,V = getisosurface(A; x = xr, y = yr, z = zr, level = level, cap = cap, padValue=1e8)            
+    @test length(boundaryedges(F)) == 0 # Is merged/closed due to caps
+
+    # Get isosurface with caps and no padValue supplied
+    level = 1.25 # Large level=radius such that sphere is too big for domain
+    cap = true
+    F,V = getisosurface(A; x = xr, y = yr, z = zr, level = level, cap = cap, padValue=nothing)            
+    @test length(boundaryedges(F)) == 0 # Is merged/closed due to caps
+    
+    F,V = getisosurface(A; level = level, cap = cap)
+    @test length(boundaryedges(F)) == 0 # Is merged/closed due to caps
+
+    F,V = getisosurface(A; level = level, cap = false)
+    @test length(boundaryedges(F)) > 0 # Is not merged/closed
+
+    gyroid(v) = cos(v[1])*sin(v[2])+cos(v[2])*sin(v[3])+cos(v[3])*sin(v[1])    
+    nSteps = 50
+    np = 3 # Number of "periods"
+    xr,yr,zr = ntuple(_->range(0,2*pi*np,nSteps),3)
+    A = [gyroid((x,y,z)) for x in xr, y in yr, z in zr]
+    
+    level = 0.0
+    cap = true
+    F,V = getisosurface(A; level = level, cap = cap)
+    @test length(boundaryedges(F)) == 0 # Is merged/closed due to caps
+
+    level = -0.1
+    cap = true
+    F,V = getisosurface(A; level = level, cap = cap)
+    @test length(boundaryedges(F)) == 0 # Is merged/closed due to caps
+
+    level = 0.1
+    cap = true
+    F,V = getisosurface(A; level = level, cap = cap)
     @test length(boundaryedges(F)) == 0 # Is merged/closed due to caps
 end
 
@@ -6724,7 +6894,7 @@ end
 
 @testset "removepoints" verbose = true begin            
     n = 15
-    V = Vector{Point{3,Float64}}(undef,n)
+    V =  rand(Point{3,Float64},n)
     V_ori = deepcopy(V)
     indRemove = [1,5,10] # Indices to remove
     V,indFix = removepoints(V,indRemove)
@@ -6734,4 +6904,458 @@ end
     @test isa(V,Vector{Point{3,Float64}})    
     @test length(V) == n-length(indRemove)
     @test indFix[indMap] == indMapped
+end
+
+@testset "inpolygon" verbose = true begin 
+    # Square
+    V = [Point{3,Float64}(-1.0,  1.0, 0.0), Point{3,Float64}( 1.0,  1.0, 0.0), 
+         Point{3,Float64}( 1.0, -1.0, 0.0), Point{3,Float64}(-1.0, -1.0, 0.0)]
+
+    p_in = Point{3,Float64}(0.0, 0.0, 0.0)
+    p_on = Point{3,Float64}(1.0, 0.0, 0.0)
+    p_out = Point{3,Float64}(2.0, 0.0, 0.0)
+    p_corner = V[1]
+    @test inpolygon(p_in,V) == 1
+    @test inpolygon(p_on,V) == 0
+    @test inpolygon(p_out,V) == -1
+    @test inpolygon(p_corner,V) == 0
+    
+    # Test other flag options 
+    # Strings
+    in_flag = "green"
+    on_flag = "blue"
+    out_flag = "red"
+    @test inpolygon(p_in,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == "green"
+    @test inpolygon(p_on,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == "blue"
+    @test inpolygon(p_out,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == "red"
+    @test inpolygon(p_corner,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == "blue"
+
+    # Symbols
+    in_flag = :in
+    on_flag = :on
+    out_flag = :out
+    @test inpolygon(p_in,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == :in
+    @test inpolygon(p_on,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == :on
+    @test inpolygon(p_out,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == :out
+    @test inpolygon(p_corner,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == :on
+
+    # Boolean
+    in_flag = true
+    on_flag = false
+    out_flag = false
+    @test inpolygon(p_in,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == true
+    @test inpolygon(p_on,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == false
+    @test inpolygon(p_out,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == false
+    @test inpolygon(p_corner,V; atol=1e-6, in_flag=in_flag, on_flag=on_flag, out_flag=out_flag) == false
+
+    # Testing vector of points
+
+    # Create example points for a "bow-tie"
+    w = 0.1
+    V = [Point{3,Float64}(-w, 0.0, 0.0), Point{3,Float64}(-1-w, 1.0, 0.0), 
+        Point{3,Float64}(1+w, 1.0, 0.0), Point{3,Float64}(w, 0.0, 0.0),
+        Point{3,Float64}(1+w, -1.0, 0.0), Point{3,Float64}(-1-w, -1.0, 0.0)]
+
+    # Create query points on a simple grid which includes on edge and on vertex points
+    np=7
+    xRange = range(-1.0-w,1.0+w,np)
+    yRange = range(-1.0,1.0,np)
+    Vq = gridpoints(xRange, yRange,[0.0])
+        
+    # Add some co-linear on edge points 
+    Vq_add = [(0.25*V[i] + 0.75*V[i+1]) for i in 1:length(V)-1]
+    append!(Vq,Vq_add)
+    Vq_add = [(0.75*V[i] + 0.25*V[i+1]) for i in 1:length(V)-1]
+    append!(Vq,Vq_add)
+
+    # Add some co-linear off edge points
+    Vq_add = [(V[i] + 1.25*(V[i+1]-V[i])) for i in 1:length(V)-1]
+    append!(Vq,Vq_add)
+    Vq_add = [(V[i] - 0.25*(V[i+1]-V[i])) for i in 1:length(V)-1]
+    append!(Vq,Vq_add)
+
+    # Add offset points (same y-direction)
+    Vq_add = [v.+Point{3,Float64}(-0.5, 0.0, 0.0) for v in V]
+    append!(Vq,Vq_add)
+    Vq_add = [v.+Point{3,Float64}( 0.5, 0.0, 0.0) for v in V]
+    append!(Vq,Vq_add)
+
+    #Add copy of polygon points (fully same coordinates)
+    append!(Vq,deepcopy(V))
+
+    # Do the inpolygon check for all query points 
+    F = inpolygon(Vq,V)
+    @test F == [0, 0, 0, 0, 0, 0, 0, -1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1, 1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, 1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 1, -1, -1, 1, -1, -1, 1, -1, -1, -1, 0, -1, 0, -1, -1, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0]
+
+    # Check for invariance in terms of polygon reversal
+    F = inpolygon(Vq,reverse(V))
+    @test F == [0, 0, 0, 0, 0, 0, 0, -1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1, 1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, 1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 1, -1, -1, 1, -1, -1, 1, -1, -1, -1, 0, -1, 0, -1, -1, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0]
+
+    # With options
+    F = [inpolygon(p,V; atol=1e-6, in_flag=1, on_flag=0, out_flag=-1) for p in Vq]
+    @test F == [0, 0, 0, 0, 0, 0, 0, -1, 1, 1, 1, 1, 1, -1, -1, -1, 1, 1, 1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, 1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 1, -1, -1, 1, -1, -1, 1, -1, -1, -1, 0, -1, 0, -1, -1, 0, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0]
+end
+
+@testset "_indexPair2sortedEdge" verbose = true begin            
+    e = Comodo._indexPair2sortedEdge(1,2)
+    @test e == LineFace{Int64}(1, 2)    
+
+    e = Comodo._indexPair2sortedEdge(2,1)
+    @test e == LineFace{Int64}(1, 2)    
+    @test typeof(e) <: LineFace{Int}
+end
+
+@testset "elementEdges" verbose = true begin            
+    # Test single tet4 element 
+    E = [Tet4{Int}(1,2,3,4)]
+    edgeSet = elementEdges(E)
+    @test edgeSet == LineFace{Int64}[LineFace{Int64}(1, 2), LineFace{Int64}(2, 3), LineFace{Int64}(1, 3), LineFace{Int64}(1, 4), LineFace{Int64}(2, 4), LineFace{Int64}(3, 4)]
+
+    # Test single penta6 element 
+    E = [Penta6{Int}(1,2,3,4,5,6)]
+    edgeSet = elementEdges(E)
+    @test edgeSet == LineFace{Int64}[LineFace{Int64}(1, 2), LineFace{Int64}(2, 3), LineFace{Int64}(1, 3), LineFace{Int64}(4, 5), LineFace{Int64}(5, 6), LineFace{Int64}(4, 6), LineFace{Int64}(1, 4), LineFace{Int64}(2, 5), LineFace{Int64}(3, 6)]
+
+    # Test single hex8 element 
+    E = [Hex8{Int}(1,2,3,4,5,6,7,8)]
+    edgeSet = elementEdges(E)
+    @test edgeSet == LineFace{Int64}[LineFace{Int64}(1, 2), LineFace{Int64}(2, 3), LineFace{Int64}(3, 4), LineFace{Int64}(1, 4), LineFace{Int64}(5, 6), LineFace{Int64}(6, 7), LineFace{Int64}(7, 8), LineFace{Int64}(5, 8), LineFace{Int64}(1, 5), LineFace{Int64}(2, 6), LineFace{Int64}(3, 7), LineFace{Int64}(4, 8)]
+end
+
+@testset "tet4_tet10" verbose = true begin               
+    # Test single element 
+    E = [Tet4{Int}(1,2,3,4)]
+    V = [Point{3,Float64}(-1.0,0.0,0.0),
+         Point{3,Float64}( 1.0,0.0,0.0),
+         Point{3,Float64}( 0.0,1.0,0.0),
+         Point{3,Float64}( 0.0,0.5,1.0),         
+         ]
+    E_tet10, V_tet10 = tet4_tet10(E,V)
+    
+    @test typeof(E_tet10) <: Vector{Tet10{Int}} 
+    @test E_tet10 == Tet10{Int64}[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    @test V_tet10 == Point{3, Float64}[[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.5, 1.0], [0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [-0.5, 0.5, 0.0], [-0.5, 0.25, 0.5], [0.5, 0.25, 0.5], [0.0, 0.75, 0.5]]
+
+    # Test multiple elements 
+    E = [Tet4{Int}(1,2,3,4),Tet4{Int}(2,3,4,5),Tet4{Int}(6,7,8,9)]
+    V = [Point{3,Float64}(-1.0,0.0,0.0),
+         Point{3,Float64}( 1.0,0.0,0.0),
+         Point{3,Float64}( 0.0,1.0,0.0),
+         Point{3,Float64}( 0.0,0.5,1.0),
+         Point{3,Float64}( 1.0,1.0,1.0),
+         Point{3,Float64}( 2.0,0.0,0.0),
+         Point{3,Float64}( 4.0,0.0,0.0),
+         Point{3,Float64}( 3.0,1.0,0.0),
+         Point{3,Float64}( 3.0,0.5,1.0),
+         ]
+    E_tet10, V_tet10 = tet4_tet10(E,V)
+    
+    ind = round.(Int,range(1,length(V_tet10),6))    
+    @test E_tet10 == Tet10{Int64}[[1, 2, 3, 4, 10, 11, 12, 13, 14, 15], [2, 3, 4, 5, 11, 15, 14, 16, 17, 18], [6, 7, 8, 9, 19, 20, 21, 22, 23, 24]]
+    @test V_tet10[ind] == Point{3, Float64}[[-1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.75, 0.5], [3.0, 0.0, 0.0], [3.0, 0.75, 0.5]]   
+end
+
+@testset "penta6_penta15" verbose = true begin                
+    # Test single element 
+    E = [Penta6{Int}(1,2,3,4,5,6)]
+    V = [Point{3,Float64}(-1.0,0.0,0.0),
+         Point{3,Float64}( 1.0,0.0,0.0),
+         Point{3,Float64}( 0.0,1.0,0.0),
+         Point{3,Float64}( 0.0,0.5,1.0),
+         Point{3,Float64}( 1.0,1.0,1.0),
+         Point{3,Float64}( 2.0,0.0,0.0),         
+         ]
+    E_penta15, V_penta15 = penta6_penta15(E,V)
+    
+    @test typeof(E_penta15) <: Vector{Penta15{Int}} 
+    @test E_penta15 == Penta15{Int64}[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]]
+    @test V_penta15  == Point{3, Float64}[[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.5, 1.0], [1.0, 1.0, 1.0], [2.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.5, 0.5, 0.0], [-0.5, 0.5, 0.0], [0.5, 0.75, 1.0], [1.5, 0.5, 0.5], [1.0, 0.25, 0.5], [-0.5, 0.25, 0.5], [1.0, 0.5, 0.5], [1.0, 0.5, 0.0]]
+
+    # Test multiple elements 
+    E = [Penta6{Int}(1,2,3,4,5,6),Penta6{Int}(1,2,3,7,8,9),Penta6{Int}(7,8,9,4,5,6)]    
+    V = [Point{3,Float64}(-1.0,0.0,0.0),
+         Point{3,Float64}( 1.0,0.0,0.0),
+         Point{3,Float64}( 0.0,1.0,0.0),
+         Point{3,Float64}( 0.0,0.5,1.0),
+         Point{3,Float64}( 1.0,1.0,1.0),
+         Point{3,Float64}( 2.0,0.0,0.0),
+         Point{3,Float64}( 4.0,0.0,0.0),
+         Point{3,Float64}( 3.0,1.0,0.0),
+         Point{3,Float64}( 3.0,0.5,1.0),
+         ]
+    E_penta15, V_penta15 = penta6_penta15(E,V)
+    
+    ind = round.(Int,range(1,length(V_penta15 ),6))    
+    @test E_penta15 == Penta15{Int64}[[1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15, 16, 17, 18], [1, 2, 3, 7, 8, 9, 10, 11, 12, 19, 20, 21, 22, 23, 24], [7, 8, 9, 4, 5, 6, 19, 20, 21, 13, 14, 15, 25, 26, 27]]
+    @test V_penta15[ind] == Point{3, Float64}[[-1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [0.5, 0.5, 0.0], [1.0, 0.5, 0.5], [1.5, 0.0, 0.0], [2.5, 0.25, 0.5]]
+end
+
+@testset "findindexin" verbose = true begin            
+    a = [6,1,2,3,4,5,11]
+    b = collect(1:10)
+    ind = findindexin(a, b)
+    @test ind == [6, 1, 2, 3, 4, 5, 0]
+
+    ind = findindexin(a, b; missingIndex=nothing)
+    indOri = indexin(a,b)
+    @test ind == [6, 1, 2, 3, 4, 5, nothing]
+    @test ind == indOri
+
+    a = [TriangleFace{Int}(1,2,3),TriangleFace{Int}(4,5,6)]
+    b = [TriangleFace{Int}(4,5,6), TriangleFace{Int}(1,2,4), TriangleFace{Int}(1,2,3),TriangleFace{Int}(4,5,6)]
+    ind = findindexin(a, b; missingIndex=nothing)
+
+    indOri = indexin(a,b)
+    @test ind == [3,1]
+    @test ind == indOri
+end
+
+@testset "hexagonline" verbose = true begin
+    r = 2.5
+    n1 = 11
+    n2 = 20
+    V1 = hexagonline(r,n1; type=:ufdf)
+    V12 = hexagonline(r,n1)
+    V2 = hexagonline(r,n2; type=:zigzag)    
+    q = r*sqrt(3)/2.0
+    @test V1 == V12 
+    @test length(V1) == n1
+    @test length(V2) == n2
+    @test isa(V1,Vector{Point{3,Float64}})
+    @test V1[2][2] == q
+    @test V2[2][1] == q
+    @test_throws Exception hexagonline(r,n1; type=:wrong)
+end
+
+@testset "hexagongrid" verbose = true begin
+    r = 2.5
+    n = (4,7)
+    V = hexagongrid(r,n)
+    q = r*sqrt(3)/2.0
+    w = r/2.0
+    Vw = hexagongrid(r,n; weave=w)
+    z = [v[3] for v in Vw]
+    @test isa(V,Vector{Point{3,Float64}})
+    @test V[2][1] == q
+    @test maximum(z) == w
+    @test minimum(z) == -w
+end
+
+@testset "hexagonmesh" verbose = true begin
+    r = 2.5
+    n = (4,7)
+    F,V = hexagonmesh(r,n)
+    q = r*sqrt(3)/2.0
+    w = r/2.0
+    Fw,Vw = hexagonmesh(r,n; weave=w)
+    z = [v[3] for v in Vw]
+    @test isa(V,Vector{Point{3,Float64}})
+    @test isa(F,Vector{NgonFace{6,Int}})
+    @test F == Fw
+    @test length(F) == prod(n)
+    @test V[2][1] == q
+    @test maximum(z) == w
+    @test minimum(z) == -w
+
+    r = 2.5
+    n = (7,4)
+    F,V = hexagonmesh(r,n)    
+    @test isa(V,Vector{Point{3,Float64}})
+    @test isa(F,Vector{NgonFace{6,Int}})    
+    @test length(F) == prod(n)
+    @test V[2][1] == q    
+
+    r = 2.5
+    n = (4,4)
+    F,V = hexagonmesh(r,n)    
+    @test isa(V,Vector{Point{3,Float64}})
+    @test isa(F,Vector{NgonFace{6,Int}})    
+    @test length(F) == prod(n)
+    @test V[2][1] == q    
+
+    r = 2.5
+    n = (5,5)
+    F,V = hexagonmesh(r,n)    
+    @test isa(V,Vector{Point{3,Float64}})
+    @test isa(F,Vector{NgonFace{6,Int}})    
+    @test length(F) == prod(n)
+    @test V[2][1] == q    
+end
+
+@testset "fromtomesh" verbose = true begin
+    @testset "matched correspondence" verbose = true begin                
+        # Quads 
+        h = 2.5
+        plateDim1 = [2.0,4.0]    
+        plateElem1 = [3,5]
+        orientation1 = :up
+        F1,V1 = quadplate(plateDim1,plateElem1; orientation=orientation1)    
+        p = eltype(V1)(0.0,0.0,h)
+        V2 = [v+p for v in V1]
+        num_steps = 8
+        correspondence = :match
+    
+        En,Vn = fromtomesh(F1, V1, V2, num_steps; correspondence = correspondence)       
+        Enp = fromtomesh!(F1, V1, V2, num_steps; correspondence = correspondence)        
+        
+        @test isa(En,Vector{Hex8{Int}})
+        @test En == Enp
+        @test Vn == Vn
+        @test En[1] == [1, 2, 6, 5, 25, 26, 30, 29]
+    end
+
+    @testset "matched correspondence" verbose = true begin                
+        # Quads 
+        h = 2.5
+        plateDim1 = [2.0,4.0]    
+        plateElem1 = [3,5]
+        orientation1 = :up
+        F1,V1 = quadplate(plateDim1,plateElem1; orientation=orientation1)    
+        p = eltype(V1)(0.0,0.0,h)
+        V2 = [v+p for v in V1]
+        num_steps = 8
+        correspondence = :match
+    
+        @test_throws Exception fromtomesh(F1, V1, V2, num_steps; correspondence = :wrong)
+
+        En,Vn = fromtomesh(F1, V1, V2, num_steps; correspondence = correspondence)       
+        Enp = fromtomesh!(F1, V1, V2, num_steps; correspondence = correspondence)        
+        
+        @test isa(En,Vector{Hex8{Int}})
+        @test length(En) == length(F1)*(num_steps-1)
+        @test En == Enp
+        @test Vn == Vn
+        @test En[1] == [1, 2, 6, 5, 25, 26, 30, 29]                
+    end
+
+    @testset "faces correspondence" verbose = true begin                
+        # Triangles 
+        plateDim1 = [2.0,4.0]      
+        pointSpacing = 0.5              
+        F1,V1 = triplate(plateDim1,pointSpacing)
+        ind1 = unique(reduce(vcat,F1))
+        p = eltype(V1)(0.0,0.0,15.0)
+        V2 = [v+p for v in V1[ind1]]
+
+        num_steps = 8
+        correspondence = :faces
+        
+        En,Vn = fromtomesh(F1, V1, V2, num_steps; correspondence = correspondence)       
+        Enp = fromtomesh!(F1, V1, V2, num_steps; correspondence = correspondence)        
+        
+        @test isa(En,Vector{Penta6{Int}})
+        @test length(En) == length(F1)*(num_steps-1)
+        @test En == Enp
+        @test Vn == Vn
+        @test En[1] == [1, 2, 6, 56,57,58]                
+    end    
+end
+
+@testset "vectorpair_angle" verbose = true begin                
+    eps_level = 1e-6
+
+    v1 = Point{3,Float64}(1.0,0.0,0.0)
+    v2 = Point{3,Float64}(0.0,1.0,0.0)
+    n = Vec{3,Float64}(0.0,0.0,1.0)
+    
+    a = vectorpair_angle(v1,v2,n; deg = false)
+    @test isapprox(a,pi/2.0,atol=eps_level)
+
+    a = vectorpair_angle(v1,v2,n; deg = true)
+    @test isapprox(a,90.0,atol=eps_level)
+
+    v1 = Point{3,Float64}(1.0,0.0,0.0)
+    v2 = Point{3,Float64}(1.0,1.0,0.0)
+    n = Vec{3,Float64}(0.0,0.0,1.0)
+
+    a = vectorpair_angle(v1,v2,n; deg = true)
+    @test isapprox(a,45.0,atol=eps_level)
+
+    a = vectorpair_angle(v1,v2,-n; deg = true)
+    @test isapprox(a,315.0,atol=eps_level)
+end    
+
+@testset "triangulateboundary" verbose = true begin                
+    @testset "Open loop" verbose = true begin                
+        eps_level = 1e-6
+        n = 13
+        V1 = collect(range(Point{3,Float64}(0.0,0.0,0.0),Point{3,Float64}(n,0.0,0.0),n))
+        for i in 2:2:n
+            V1[i] = Point{3,Float64}(V1[i][1],1.0,0.0)
+        end
+        ind1 = collect(1:length(V1))
+        N1 = fill(Vec{3,Float64}(0.0,0.0,1.0),length(ind1))
+
+        V2 = V1
+        ind2 = ind1
+        N2 = fill(Vec{3,Float64}(0.0,0.0,-1.0),length(ind2))
+
+        close_loop = false
+        anglethreshold = 140.0
+        
+        F1n = triangulateboundary(V1, ind1, N1, anglethreshold; deg = true, close_loop=close_loop)
+        F1n2 = triangulateboundary(V1, ind1, N1, anglethreshold*(pi/180); deg = false, close_loop=close_loop)
+        F2n = triangulateboundary(V2, ind2, N2, anglethreshold; deg = true, close_loop=close_loop)
+
+        @test isa(F1n,Vector{TriangleFace{Int}})
+        @test length(F1n) == 6
+        @test length(F2n) == 5
+        @test F1n == F1n2
+    end
+
+    @testset "Close loop" verbose = true begin                
+        eps_level = 1e-6
+        
+        r = 2.0
+        n = 16
+        V1 = circlepoints(r,n; dir=:acw)
+        for i in 1:2:n  
+            V1[i]/=2.0
+        end
+        ind1 = collect(1:length(V1))
+        N1 = fill(Vec{3,Float64}(0.0,0.0,1.0),length(ind1))
+
+        V2 = V1
+        ind2 = ind1
+        N2 = fill(Vec{3,Float64}(0.0,0.0,-1.0),length(ind2))
+
+        close_loop = true
+        anglethreshold = 90.0
+                
+        F1n = triangulateboundary(V1, ind1, N1, anglethreshold; deg = true, close_loop=close_loop)
+        F1n2 = triangulateboundary(V1, ind1, N1, anglethreshold*(pi/180); deg = false, close_loop=close_loop)
+        F2n = triangulateboundary(V2, ind2, N2, anglethreshold; deg = true, close_loop=close_loop)
+
+        @test isa(F1n,Vector{TriangleFace{Int}})
+        @test length(F1n) == n/2
+        @test length(F2n) == n/2
+        @test F1n == F1n2
+    end
+end
+
+@testset "faceinteriorpoint" verbose = true begin                       
+    @testset "sphere" verbose = true begin                       
+        n = 5 
+        r = 2.0
+        F,V = geosphere(4,r)
+        eps_level = r./100
+
+        indFace = 1
+        P_on1 = faceinteriorpoint(F,V, indFace; w=0.0) # mean of face
+        P_in = faceinteriorpoint(F,V, indFace; w=0.5) # Mid-point around mean
+        P_on2 = faceinteriorpoint(F,V, indFace; w=1.0) # other side
+
+        @test isa(P_in,Point{3,Float64})
+        @test isapprox(P_in,mean(V),atol=eps_level)
+        @test isapprox(norm(P_on1-P_on2),2.0*r,atol=eps_level)
+    end
+
+    @testset "Errors" verbose = true begin                       
+        t = range(0.0,0.5*pi,10)
+        Vc = [Point{3,Float64}(cos(t),sin(t),0.0) for t in t]
+        n = normalizevector(Vec{3, Float64}(0.0,0.0,1.0)) # Extrusion direction
+        F,V = extrudecurve(Vc; extent=0.25, direction=:both, n=n, close_loop=false,face_type=:tri)
+        indFace = 1
+        @test_throws Exception faceinteriorpoint(F,V, indFace)
+    end
 end

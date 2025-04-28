@@ -500,9 +500,6 @@ Comodo.tribox
 ```@docs 
 Comodo.tetbox
 ```
-, getisosurface
-
-export randangle, stepfunc, perlin\_noise
 
 ## `pad3`
 ```@docs 
@@ -527,4 +524,79 @@ Comodo.stepfunc
 ## `perlin_noise`
 ```@docs 
 Comodo.perlin_noise
+```
+
+## `removepoints`
+```@docs 
+Comodo.removepoints
+```
+
+## `inpolygon`
+```@docs 
+Comodo.inpolygon
+```
+
+## `_indexPair2sortedEdge`
+```@docs 
+Comodo._indexPair2sortedEdge
+```
+
+## `elementEdges`
+```@docs 
+Comodo.elementEdges
+```
+
+## `tet4_tet10`
+```@docs 
+Comodo.tet4_tet10
+```
+
+## `penta6_penta15`
+```@docs 
+Comodo.penta6_penta15
+```
+
+## `findindexin`
+```@docs 
+Comodo.findindexin
+```
+
+## `hexagonline`
+```@docs 
+Comodo.hexagonline
+```
+
+## `hexagongrid`
+```@docs 
+Comodo.hexagongrid
+```
+
+## `hexagonmesh`
+```@docs 
+Comodo.hexagonmesh
+```
+
+## `fromtomesh!`
+```@docs 
+Comodo.fromtomesh!
+```
+
+## `fromtomesh`
+```@docs 
+Comodo.fromtomesh
+```
+
+## `vectorpair_angle`
+```@docs 
+Comodo.vectorpair_angle
+```
+
+## `triangulateboundary`
+```@docs 
+Comodo.triangulateboundary
+```
+
+## `faceinteriorpoint`
+```@docs 
+Comodo.faceinteriorpoint
 ```
