@@ -60,41 +60,6 @@ Comodo.dist
 Comodo.mindist
 ```
 
-## `unique_dict_index`
-```@docs
-Comodo.unique_dict_index
-```
-
-## `unique_dict_index_inverse`
-```@docs
-Comodo.unique_dict_index_inverse
-```
-
-## `unique_dict_index_count`
-```@docs
-Comodo.unique_dict_index_count
-```
-
-## `unique_dict_index_inverse_count`
-```@docs
-Comodo.unique_dict_index_inverse_count
-```
-
-## `unique_dict_count`
-```@docs
-Comodo.unique_dict_count
-```
-
-## `unique_dict_inverse`
-```@docs
-Comodo.unique_dict_inverse
-```
-
-## `unique_dict`
-```@docs
-Comodo.unique_dict
-```
-
 ## `gunique`
 ```@docs
 Comodo.gunique
@@ -201,6 +166,16 @@ Comodo.subtri
 Comodo.subquad
 ```
 
+## `_pushtoradius`
+```@docs
+Comodo._pushtoradius
+```
+
+## `_pushtoradius!`
+```@docs
+Comodo._pushtoradius!
+```
+
 ## `geosphere`
 ```@docs
 Comodo.geosphere
@@ -289,6 +264,16 @@ Comodo.quadplate
 ## `quadsphere`
 ```@docs
 Comodo.quadsphere
+```
+
+## `simplex2vertexdata`
+```@docs
+Comodo.simplex2vertexdata
+```
+
+## `subquadsphere`
+```@docs
+Comodo.subquadsphere
 ```
 
 ## `loflinear`
@@ -599,4 +584,14 @@ Comodo.triangulateboundary
 ## `faceinteriorpoint`
 ```@docs 
 Comodo.faceinteriorpoint
+```
+
+## `hexsphere`
+```@docs 
+Comodo.hexsphere
+```
+
+## `hexspherehollow`
+```@docs 
+Comodo.hexspherehollow
 ```

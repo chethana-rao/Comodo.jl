@@ -6,6 +6,12 @@ on:
       - '*.md'
     branches:
       - main
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+    branches:
+      - main
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -30,7 +36,7 @@ jobs:
           version: '1'
           include-all-prereleases: false
           arch: x64
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v2
       - name: Testing        
         env:
           GITHUB_TOKEN: ${{ secrets.BENCHMARK_KEY }}
@@ -38,7 +44,7 @@ jobs:
         run: >
           DISPLAY=:0 xvfb-run -s '-screen 0 1024x768x24' julia --project=. -e 'using Pkg; Pkg.test(coverage = true)'
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v4
+      - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: COMODO-research/Comodo.jl

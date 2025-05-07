@@ -5,6 +5,7 @@ using Comodo.LinearAlgebra
 using Comodo.GLMakie
 using Comodo.Rotations
 using Comodo.BSplineKit
+using Pkg
 
 @testset "comododir" verbose = true begin
     f = comododir()
@@ -51,7 +52,6 @@ end
     rm(fileName) # Clean up
 end
 
-
 @testset "elements2indices" verbose = true begin
     @testset "Tri. faces" begin
         F = Vector{TriangleFace{Int}}(undef, 3)
@@ -59,7 +59,8 @@ end
         F[2] = TriangleFace{Int}(1, 5, 9)
         F[3] = TriangleFace{Int}(1, 8, 5)
         result = elements2indices(F)
-        @test sort(result) == [1, 4, 5, 8, 9]
+        @test sort(result) == sort([1, 4, 5, 8, 9])
+        @test empty(result) == elements2indices(empty(F))
     end
 
     @testset "Quad. faces" begin
@@ -71,7 +72,8 @@ end
         F[5] = QuadFace{Int}(7, 8, 4, 3)
         F[6] = QuadFace{Int}(8, 5, 1, 4)
         result = elements2indices(F)
-        @test sort(result) == [1, 2, 3, 4, 5, 6, 7, 8]
+        @test sort(result) == sort([1, 2, 3, 4, 5, 6, 7, 8])
+        @test empty(result) == elements2indices(empty(F))
     end
 end
 
@@ -88,7 +90,10 @@ end
         @test V == Point3{Float64}[[1.0, 1.0, 0.0], [2.0, 1.0, 0.0], 
         [1.0, 2.0, 0.0], [2.0, 2.0, 0.0], [1.0, 1.0, 0.375], 
         [2.0, 1.0, 0.375], [1.0, 2.0, 0.375], [2.0, 2.0, 0.375],
-         [1.0, 1.0, 0.75], [2.0, 1.0, 0.75], [1.0, 2.0, 0.75], [2.0, 2.0, 0.75]]      
+         [1.0, 1.0, 0.75], [2.0, 1.0, 0.75], [1.0, 2.0, 0.75], [2.0, 2.0, 0.75]] 
+         
+         @inferred V[1]
+         @test typeof(V) <: AbstractVector{Point3{Float64}}
     end
 
     @testset "with 1 vector" begin
@@ -154,6 +159,14 @@ end
 
         @test allequal([result1, result2, result3])
     end
+
+    @testset "Empty input" begin
+        a = Float64[]
+        result = gridpoints(a)
+        @test result == Point3{Float64}[]
+    end
+
+        
 end
 
 
@@ -164,7 +177,8 @@ end
         xSpan = [-3,3]
         ySpan = [-2,2]
         pointSpacing = 0.5
-        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = false, rectangular=false, force_equilateral=true)
+        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = Val(false), rectangular=Val(false), force_equilateral=Val(true))
+        @inferred gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = Val(false), rectangular=Val(false), force_equilateral=Val(true))
         ind = round.(Int,range(1,length(V),10))
         
         @test isa(V,Vector{Point{3,Float64}})
@@ -183,7 +197,8 @@ end
         xSpan = [-3,3]
         ySpan = [-2,2]
         pointSpacing = 0.5
-        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = false, rectangular = true, force_equilateral = false)
+        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = Val(false), rectangular = Val(true), force_equilateral = Val(false))
+        @inferred gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = Val(false), rectangular=Val(true), force_equilateral=Val(false))
         ind = round.(Int,range(1,length(V),10))
         
         @test isa(V,Vector{Point{3,Float64}})
@@ -196,7 +211,8 @@ end
         xSpan = (-3,3)
         ySpan = (-2,2)
         pointSpacing = 1
-        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = false, rectangular = true, force_equilateral = true)
+        V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = Val(false), rectangular = Val(true), force_equilateral = Val(true))
+        @inferred gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = Val(false), rectangular=Val(true), force_equilateral = Val(true))
         ind = round.(Int,range(1,length(V),10))
 
         @test isa(V,Vector{Point{3,Float64}})
@@ -216,7 +232,8 @@ end
         xSpan = (-3,3)
         ySpan = (-2,2)
         pointSpacing = 1
-        F,V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = true, rectangular = true, force_equilateral = true)
+        F,V = gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = Val(true), rectangular = Val(true), force_equilateral = Val(true))
+        @inferred gridpoints_equilateral(xSpan,ySpan,pointSpacing; return_faces = Val(true), rectangular=Val(true), force_equilateral = Val(true))
         ind = round.(Int,range(1,length(V),10))
         indF = round.(Int,range(1,length(F),10))
 
@@ -419,13 +436,9 @@ end
         @test lerp([0.0,1.0],[[0.0,10.0,20.0,30.0],[10.0,20.0,30.0,40.0]],[0.0,0.5,1.0]) == [[0.0,10.0,20.0,30.0],[5.0,15.0,25.0,35.0],[10.0,20.0,30.0,40.0]] # Single value interpolation site
     end
 
+    @test Comodo.lerp([0.0, 1.0], [0.0, 10.0],0.5) == 5.0 # Vector input
+    @test Comodo.lerp(range(0.0, 1.0, 3), range(0.0, 10.0, 3),0.5) == 5.0 # range input
 end
-
-@testset "lerp_" begin 
-    @test Comodo.lerp_([0.0, 1.0], [0.0, 10.0],0.5) == 5.0 # Vector input
-    @test Comodo.lerp_(range(0.0, 1.0, 3), range(0.0, 10.0, 3),0.5) == 5.0 # range input
-end
-
 
 @testset "dist" verbose = true begin
     eps_level = 1e-4
@@ -490,19 +503,19 @@ end
     @test isapprox(D, [3.7416573867739413, 0.0, 10.775880678677236], atol = eps_level)
     
     # Also outputting index
-    D,ind = mindist(V1, V2; getIndex=true)    
+    D,ind = mindist(V1, V2; getIndex=Val(true))    
     @test D isa Vector{Float64}
     @test isapprox(D, [3.7416573867739413, 0.0, 10.775880678677236], atol = eps_level)
     @test ind == [2,2,2]
 
     # Snap to self for self distances
-    D,ind = mindist(V1, V1; getIndex=true,skipSelf = false)    
+    D,ind = mindist(V1, V1; getIndex=Val(true),skipSelf = false)    
     @test D isa Vector{Float64}
     @test isapprox(D, [0.0,0.0,0.0], atol = eps_level)
     @test ind == [1,2,3]
 
     # Do not snap to self if self is avoided
-    D,ind = mindist(V1, V1; getIndex = true, skipSelf = true)    
+    D,ind = mindist(V1, V1; getIndex = Val(true), skipSelf = true)    
     @test D isa Vector{Float64}
     @test isapprox(D, [3.7416573867739413, 3.7416573867739413, 10.775880678677236], atol = eps_level)
     @test ind == [2,1,2]
@@ -510,23 +523,27 @@ end
 
 
 @testset "unique_dict_index" begin 
-    result1, result2 = Comodo.unique_dict_index([1, 2, 3, 3, 3, 4, 4, 4, 5])
+    arr = [1, 2, 3, 3, 3, 4, 4, 4, 5]
+    result1, result2 = gunique(arr; return_index = Val(true))
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [1, 2, 3, 6, 9]
 
-    result1, result2 = Comodo.unique_dict_index([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
+    arr = [[1, 2, 3], [3,2,1],[4,5,6]]
+    result1, result2 = gunique(arr; return_index = Val(true), sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [1, 3]
 end 
 
 
 @testset "unique_dict_index_inverse" begin 
-    result1, result2, result3 = Comodo.unique_dict_index_inverse([1, 2, 3, 3, 3, 4, 4, 4, 5])
+    arr = [1, 2, 3, 3, 3, 4, 4, 4, 5]
+    result1, result2, result3 = gunique(arr; return_index = Val(true), return_inverse = Val(true))
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [1, 2, 3, 6, 9]
     @test result3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
 
-    result1, result2, result3 = Comodo.unique_dict_index_inverse([[1, 2, 3], [3,2,1],[4,5,6]],sort_entries = true)
+    arr = [[1, 2, 3], [3,2,1],[4,5,6]]
+    result1, result2, result3 = gunique(arr; return_index = Val(true), return_inverse = Val(true), sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [1, 3]
     @test result3 == [1, 1, 2]
@@ -534,12 +551,14 @@ end
 
 
 @testset "unique_dict_index_count" begin 
-    result1, result2, result3 = Comodo.unique_dict_index_count([1, 2, 3, 3, 3, 4, 4, 4, 5])
+    arr = [1, 2, 3, 3, 3, 4, 4, 4, 5]
+    result1, result2, result3 = gunique(arr; return_index = Val(true), return_counts = Val(true))
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [1, 2, 3, 6, 9]
     @test result3 == [1, 1, 3, 3, 1]
 
-    result1, result2, result3 = Comodo.unique_dict_index_count([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
+    arr = [[1, 2, 3], [3,2,1],[4,5,6]]
+    result1, result2, result3 = gunique(arr; return_index = Val(true), return_counts = Val(true), sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [1, 3]
     @test result3 == [2, 1]
@@ -547,44 +566,51 @@ end
 
 
 @testset "unique_dict_index_inverse_count" begin 
-    r1, r2, r3, r4 = Comodo.unique_dict_index_inverse_count([1, 2, 3, 3, 3, 4, 4, 4, 5])
-    @test r1 == [1, 2, 3, 4, 5]
-    @test r2 == [1, 2, 3, 6, 9]
-    @test r3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
-    @test r4 == [1, 1, 3, 3, 1]
+    arr = [1, 2, 3, 3, 3, 4, 4, 4, 5]
+    result1, result2, result3, result4 = gunique(arr, return_index = Val(true), return_inverse = Val(true), return_counts = Val(true))
+    @test result1 == [1, 2, 3, 4, 5]
+    @test result2 == [1, 2, 3, 6, 9]
+    @test result3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
+    @test result4 == [1, 1, 3, 3, 1]
 
-    r1, r2, r3, r4 = Comodo.unique_dict_index_inverse_count([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
-    @test r1 == [[1, 2, 3], [4, 5,6]]
-    @test r2 == [1, 3]
-    @test r3 == [1, 1, 2]
-    @test r4 == [2,1]
+    arr = [[1, 2, 3], [3,2,1],[4,5,6]]
+    result1, result2, result3, result4 = gunique(arr, return_index = Val(true), return_inverse = Val(true), return_counts = Val(true), sort_entries = true)
+    @test result1 == [[1, 2, 3], [4, 5,6]]
+    @test result2 == [1, 3]
+    @test result3 == [1, 1, 2]
+    @test result4 == [2, 1]
 end 
 
 
 @testset "unique_dict_count" begin 
-    result1, result2 = Comodo.unique_dict_count([1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5])
+    arr = [1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5]
+    result1, result2 = gunique(arr; return_counts = Val(true))
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [3, 4, 2, 1, 1]
 
-    result1, result2 = Comodo.unique_dict_count([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
+    arr = [[1, 2, 3], [3,2,1],[4,5,6]]
+    result1, result2 = gunique(arr; return_counts = Val(true), sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [2,1]
 end
 
 
 @testset "unique_dict_inverse" begin 
-    result1, result2 = Comodo.unique_dict_inverse([1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5])
+    arr = [1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5]
+    result1, result2 = gunique(arr; return_inverse = Val(true))
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5]
 
-    result1, result2 = Comodo.unique_dict_inverse([[1, 2, 3], [3,2,1],[4,5,6]], sort_entries = true)
+    arr = [[1, 2, 3], [3,2,1],[4,5,6]]
+    result1, result2 = gunique(arr; return_inverse = Val(true), sort_entries = true)
     @test result1 == [[1, 2, 3], [4, 5,6]]
     @test result2 == [1, 1, 2]
 end 
 
 
 @testset "unique_dict" begin 
-    result1, result2, result3 = unique_dict([1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5])
+    arr = [1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5]
+    result1, result2, result3 = gunique(arr; return_index=Val(true), return_inverse=Val(true))
     @test result1 == [1, 2, 3, 4, 5]
     @test result2 == [1, 4, 8, 10, 11]
     @test result3 == [1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 5]
@@ -597,6 +623,8 @@ end
         A = [3,2,3,4,2,5,6]
         B_true = Bool[0, 0, 0, 1, 0, 1, 1]
         @test occursonce(A) == B_true
+        @test occursonce(A) isa BitVector
+        @inferred occursonce(A)
 
         # Vector of floats
         A = [3.1,2.0,3.1,4.5,2.0,5.0,6.0]
@@ -661,30 +689,30 @@ end
 end
 
 @testset "gunique" begin     
-    r1, r2, r3, r4 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = true, return_inverse = true, return_counts = true, sort_entries = false)
+    r1, r2, r3, r4 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), return_counts = Val(true), sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 2, 3, 6, 9]
     @test r3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
     @test r4 == [1, 1, 3, 3, 1]
 
-    r1, r2, r3 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = true, return_inverse = true, return_counts = false, sort_entries = false)
+    r1, r2, r3 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), return_counts = Val(false), sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 2, 3, 6, 9]
     @test r3 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
 
-    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = false, return_inverse = false, return_counts = true, sort_entries = false)
+    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=Val(true), return_index = Val(false), return_inverse = Val(false), return_counts = Val(true), sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 1, 3, 3, 1]
 
-    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = false, return_inverse = true, return_counts = false, sort_entries = false)
+    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=Val(true), return_index = Val(false), return_inverse = Val(true), return_counts = Val(false), sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 2, 3, 3, 3, 4, 4, 4, 5]
 
-    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = true, return_inverse = false, return_counts = false, sort_entries = false)
+    r1, r2 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=Val(true), return_index = Val(true), return_inverse = Val(false), return_counts = Val(false), sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
     @test r2 == [1, 2, 3, 6, 9]
 
-    r1 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=true, return_index = false, return_inverse = false, return_counts = false, sort_entries = false)
+    r1 = gunique([1, 2, 3, 3, 3, 4, 4, 4, 5]; return_unique=Val(true), return_index = Val(false), return_inverse = Val(false), return_counts = Val(false), sort_entries = false)
     @test r1 == [1, 2, 3, 4, 5]
 end 
 
@@ -759,25 +787,6 @@ end
     end
 end
 
-@testset "ind2sub_" verbose = true begin
-    ind = 6
-    @testset "1D i.e. Vector" begin
-        A = rand(30)        
-        @test Comodo.ind2sub_(6,length(size(A)),cumprod(size(A))) == [6]
-    end
-
-    @testset "2D i.e. 2D Matrix" begin
-        B = rand(5,6)         
-        @test Comodo.ind2sub_(6,length(size(B)),cumprod(size(B))) == [1,2]
-    end
-
-    @testset "3D i.e. 3D matrix" begin
-        C = rand(3,5,2)        
-        @test Comodo.ind2sub_(6,length(size(C)),cumprod(size(C))) == [3,2,1]
-    end
-end
-
-
 @testset "sub2ind" verbose = true begin
     ind = [1,2,3,4,8,12,30]
     A = rand(30)
@@ -788,34 +797,26 @@ end
     IJK_C = [[1, 1, 1], [2, 1, 1], [3, 1, 1], [1, 2, 1], [2, 3, 1], [3, 4, 1], [3, 5, 2]]
 
     @testset "Errors" begin
-        @test_throws DomainError sub2ind(size(A),[[-1]])
-        @test_throws DomainError sub2ind(size(A),[-1]) 
-        @test_throws DomainError sub2ind(size(A),[length(A)+1]) 
-        @test_throws DimensionMismatch sub2ind(size(A),[1,2,3,4]) 
+        @test_throws BoundsError sub2ind(size(A),[-1]) 
+        @test_throws BoundsError sub2ind(size(A),[length(A)+1]) 
 
-        @test_throws DomainError sub2ind(size(B),[[-1,1]])
-        @test_throws DomainError sub2ind(size(B),[-1,1]) 
-        @test_throws DomainError sub2ind(size(B),[1,length(B)+1]) 
-        @test_throws DimensionMismatch sub2ind(size(B),[1,2,3,4]) 
-        @test_throws DimensionMismatch sub2ind(size(B),[[1,2,3,4]])
+        @test_throws BoundsError sub2ind(size(B),[-1,1]) 
+        @test_throws BoundsError sub2ind(size(B),[1,length(B)+1]) 
 
-        @test_throws DomainError sub2ind(size(C),[[-1,1,1]])
-        @test_throws DomainError sub2ind(size(C),[-1,1,1]) 
-        @test_throws DomainError sub2ind(size(C),[length(C)+1,1,1]) 
-        @test_throws DimensionMismatch sub2ind(size(C),[1,2,3,4]) 
-        @test_throws DimensionMismatch sub2ind(size(B),[[1,2,3,4]])
+        @test_throws BoundsError sub2ind(size(C),[-1,1,1]) 
+        @test_throws BoundsError sub2ind(size(C),[length(C)+1,1,1]) 
     end
 
     @testset "1D i.e. Vector" begin        
-        @test sub2ind(size(A),IJK_A)==ind
+        @test [A[i] for i in sub2ind(size(A),IJK_A)]==A[ind]
     end
 
     @testset "2D i.e. 2D Matrix" begin    
-        @test sub2ind(size(B),IJK_B)==ind
+        @test [B[i] for i in sub2ind(size(B),IJK_B)]==B[ind]
     end
 
     @testset "3D i.e. 3D matrix" begin        
-        @test sub2ind(size(C),IJK_C)==ind
+        @test [C[i] for i in sub2ind(size(C),IJK_C)]==C[ind]
     end
 
     @testset "Vector specifying indices 1D" begin        
@@ -825,27 +826,11 @@ end
     @testset "Vector specifying size" begin        
         @test sub2ind(collect(size(C)),IJK_C)==ind
     end
-end
 
-
-@testset "sub2ind_" verbose = true begin
-
-    @testset "1D i.e. Vector" begin
-        A = rand(30)        
-        @test Comodo.sub2ind_([6],length(size(A)),cumprod(size(A))) == 6
-    end
-
-    @testset "2D i.e. 2D Matrix" begin
-        B = rand(5,6)         
-        @test Comodo.sub2ind_([1,2],length(size(B)),cumprod(size(B))) == 6
-    end
-
-    @testset "3D i.e. 3D matrix" begin
-        C = rand(3,5,2)        
-        @test Comodo.sub2ind_([3,2,1],length(size(C)),cumprod(size(C))) == 6
+    @testset "length(siz) == length(A)" begin 
+        @test sub2ind([2,4,6,10,5,12],[1,2,3,3,2,5]) == 10195
     end
 end
-
 
 @testset "meshedges" verbose = true begin
     @testset "Single triangle" begin
@@ -1671,6 +1656,33 @@ end
     end
 end
 
+@testset "Comodo._pushtoradius" begin    
+    eps_level = 1e-6
+
+    _,V = geosphere(3,1.0) # Vector of points 
+    v = deepcopy(V[1]) # Single point 
+
+    r = 3.5
+    Vn = Comodo._pushtoradius(V,r)
+    vn = Comodo._pushtoradius(v,r)
+
+    @test all(isapprox.(norm.(Vn),r,atol=eps_level = 1e-6))
+    @test isapprox(norm(vn),r,atol=eps_level = 1e-6)
+end
+
+@testset "Comodo._pushtoradius!" begin    
+    eps_level = 1e-6
+
+    _,V = geosphere(3,1.0) # Vector of points 
+    # v = deepcopy(V[1]) # Single point 
+
+    r = 3.5
+    Comodo._pushtoradius!(V,r)
+    # Comodo._pushtoradius!(v,r)
+
+    @test all(isapprox.(norm.(V),r,atol=eps_level = 1e-6))
+    # @test isapprox(norm(v),r,atol=eps_level = 1e-6)
+end
 
 @testset "geosphere" begin    
     eps_level = 1e-4
@@ -1826,7 +1838,7 @@ end
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
 
         con_F2E = con_face_edge(F)
         @test con_F2E == [[1,2,3]]
@@ -1838,7 +1850,7 @@ end
     @testset "Single quad" begin
         F = QuadFace{Int}[[1,2,3,4]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
 
         con_F2E = con_face_edge(F)
         @test con_F2E == [[1,2,3,4]]
@@ -1865,7 +1877,7 @@ end
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
 
         con_E2F = con_edge_face(F)
         @test con_E2F == fill([1],length(F[1]))
@@ -1877,7 +1889,7 @@ end
     @testset "Single quad" begin
         F = QuadFace{Int}[[1,2,3,4]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
 
         con_E2F = con_edge_face(F)
         @test con_E2F == fill([1],length(F[1]))
@@ -1904,7 +1916,7 @@ end
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
         con_E2F = con_edge_face(F)
         con_F2E = con_face_edge(F)
 
@@ -1919,7 +1931,7 @@ end
     @testset "Single quad" begin
         F = QuadFace{Int}[[1,2,3,4]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
         con_E2F = con_edge_face(F)
         con_F2E = con_face_edge(F)
 
@@ -2102,7 +2114,7 @@ end
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
         con_V2E = con_vertex_edge(E_uni) 
                 
         con_E2E = con_edge_edge(E_uni)
@@ -2115,7 +2127,7 @@ end
     @testset "Single quad" begin
         F = QuadFace{Int}[[1,2,3,4]]
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
         con_V2E = con_vertex_edge(E_uni) 
 
         con_E2E = con_edge_edge(E_uni)
@@ -2128,7 +2140,7 @@ end
     @testset "Triangles" begin
         F = TriangleFace{Int}[[1,2,3],[2,3,4]]       
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
         con_E2E = con_edge_edge(E_uni)
         @test con_E2E == [[4, 2, 5], [1, 5, 3, 4], [2, 4, 5], [2, 3, 1], [3, 1, 2]]      
     end
@@ -2136,7 +2148,7 @@ end
     @testset "Quads" begin
         F = QuadFace{Int}[[1,2,3,4],[3,4,5,6]]      
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)      
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
         con_E2E = con_edge_edge(E_uni)
         @test con_E2E == [[6, 3], [3, 7, 4, 6], [1, 2, 7], [2, 6, 5], [4, 7], [2, 4, 1], [5, 2, 3]]    
     end
@@ -2181,13 +2193,12 @@ end
     end
 end
 
-
 @testset "con_vertex_vertex" verbose = true begin    
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]        
         V = [Point3{Float64}(rand(3)) for _ in 1:3]        
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
         con_V2E = con_vertex_edge(E_uni) 
 
         con_V2V = con_vertex_vertex(E)
@@ -2201,7 +2212,7 @@ end
         F = QuadFace{Int}[[1,2,3,4]]        
         V = [Point3{Float64}(rand(4)) for _ in 1:4]        
         E = meshedges(F;unique_only=false)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)    
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)    
         con_V2E = con_vertex_edge(E_uni) 
 
         con_V2V = con_vertex_vertex(E)
@@ -2226,7 +2237,6 @@ end
     end
 end
 
-
 @testset "meshconnectivity" verbose = true begin    
     @testset "Single triangle" begin
         F = TriangleFace{Int}[[1,2,3]]        
@@ -2234,7 +2244,7 @@ end
 
         # EDGE-VERTEX connectivity
         E = meshedges(F)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)
 
         # FACE-EDGE connectivity
         con_F2E = con_face_edge(F,E_uni,indReverse)    
@@ -2284,7 +2294,7 @@ end
 
         # EDGE-VERTEX connectivity
         E = meshedges(F)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)
 
         # FACE-EDGE connectivity
         con_F2E = con_face_edge(F,E_uni,indReverse)    
@@ -2334,7 +2344,7 @@ end
 
         # EDGE-VERTEX connectivity
         E = meshedges(F)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)
 
         # FACE-EDGE connectivity
         con_F2E = con_face_edge(F,E_uni,indReverse)    
@@ -2384,7 +2394,7 @@ end
         
         # EDGE-VERTEX connectivity
         E = meshedges(F)
-        E_uni,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
+        E_uni,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)
 
         # FACE-EDGE connectivity
         con_F2E = con_face_edge(F,E_uni,indReverse)    
@@ -2706,12 +2716,28 @@ end
 end
 
 
-@testset "quadsphere" begin
+@testset "subquadsphere" begin
     eps_level = 1e-4
+    
+    # Test cube case with no refinement
+    r = 1.5
+    F, V = subquadsphere(0, r)    
+    @test length(V) == 8
+    @test length(F) == 6
+    @test isapprox(norm.(V), fill(r,length(V)), atol=eps_level)
+    
+    # Test 1-step refinement (uses linear subdivision)
+    r = 2.0
+    F, V = subquadsphere(1, r)
+    @test length(V) == 8+3*4+6
+    @test length(F) == 6*4
+    @test isapprox(norm.(V), fill(r,length(V)), atol=eps_level)
+
+    # Test >1 step refinement 
     r = 1.0
-    F, V = quadsphere(3, r)
+    F, V = subquadsphere(3, r)
     ind = round.(Int,range(1,length(V),6))
-    V_true = Point{3, Float64}[[-0.5773502691896258, -0.5773502691896258, -0.5773502691896258], [-0.36700100107065714, 0.8547634353587377, 0.36700100107065714], [-0.9807852804032304, 0.0, 0.1950903220161283], [-0.3815651304866988, 0.18679164007781993, 0.9052717461589679], [0.4942387316114103, -0.4942387316114103, -0.7151616267322294], [0.1731315037005652, -0.8165807660291813, -0.550655368608694]]
+    V_true = Point{3, Float64}[[-0.5773502691896258, -0.5773502691896258, -0.5773502691896258], [-0.3689702423132517, 0.8530661876868645, 0.3689702423132517], [-0.9793474352247509, 0.0, 0.20218457191067402], [-0.38513265214423603, 0.18957274057435147, 0.9031805003893055], [0.49847402263276075, -0.49847402263276075, -0.7092582727896994], [0.18095633824105684, -0.8135537030036463, -0.552616662777592]]
     @test V isa Vector{Point3{Float64}}
     @test length(V) == 386
     @test isapprox(V[ind], V_true, atol=eps_level)
@@ -2738,9 +2764,13 @@ end
     # A hexahedral mesh 
     Eh,Vh,_,_,_ = hexbox([1.0,1.0,1.0],[2,2,2])
 
+    # Edges 
+    Lq = meshedges(Fq)
+
     @testset "Errors" begin
         DF = [1.0] # Face data 
-        @test_throws ArgumentError simplex2vertexdata(F1,DF,nothing; weighting=:area)
+        @test_throws ArgumentError simplex2vertexdata(F1,DF,nothing; weighting=:size)
+        @test_throws ArgumentError simplex2vertexdata(F1,DF,V1; weighting=:wrong)
     end
 
     @testset "Vector Float64 data, weighting=:none" begin
@@ -2758,13 +2788,13 @@ end
         @test isnan(DV[end])
         
         # Quads
-        DF = collect(Float64,1:length(Fq)) # Face data (here face numbers)
+        DF = collect(Float64,1:length(Fq)) # Face data (here face numbers)       
         DV = simplex2vertexdata(Fq,DF,Vq; weighting=:none)
         D_true = [13.333333333333334, 14.666666666666666, 17.333333333333332, 20.0, 11.666666666666666, 9.0, 7.666666666666667, 6.333333333333333, 11.0, 6.5, 11.5, 9.0, 10.0, 14.5, 12.5, 13.5, 14.5, 13.5, 18.0, 15.5, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
         @test isapprox(DV,D_true, atol=eps_level)
 
         # Triangles
-        DF = collect(Float64,1:length(Ft)) # Face data (here face numbers)
+        DF = collect(Float64,1:length(Ft)) # Face data (here face numbers)      
         DV = simplex2vertexdata(Ft,DF,Vt; weighting=:none)
         D_true = [10.333333333333334, 11.333333333333334, 13.333333333333334, 7.0, 6.833333333333333, 7.166666666666667, 8.166666666666666, 7.666666666666667, 8.666666666666666, 8.5]
         @test isapprox(DV,D_true, atol=eps_level)
@@ -2774,27 +2804,44 @@ end
         DV = simplex2vertexdata(Eh,DF,Vh; weighting=:none)
         D_true = [1.0, 1.5, 2.0, 2.0, 2.5, 3.0, 3.0, 3.5, 4.0, 3.0, 3.5, 4.0, 4.0, 4.5, 5.0, 5.0, 5.5, 6.0, 5.0, 5.5, 6.0, 6.0, 6.5, 7.0, 7.0, 7.5, 8.0]
         @test isapprox(DV,D_true, atol=eps_level)
-        
+
+        # Edges
+        DF = collect(Float64,1:length(Lq))        
+        DV = simplex2vertexdata(Lq,DF,Vq; weighting=:none)
+        D_true = [49.333333333333336, 50.666666666666664, 53.333333333333336, 56.0, 47.666666666666664, 45.0, 43.666666666666664, 42.333333333333336, 47.0, 42.5, 47.5, 45.0, 46.0, 50.5, 48.5, 49.5, 50.5, 49.5, 54.0, 51.5, 46.0, 47.0, 48.0, 49.0, 50.0, 51.0]
+        @test isapprox(DV,D_true, atol=eps_level)
     end
     
-    @testset "Vector Float64 data, weighting=:area" begin
+    @testset "Vector Float64 data, weighting=:size" begin
         # Single element
         DF = [1.0] # Face data 
-        DV = simplex2vertexdata(F1,DF,V1; weighting=:area)
+        DV = simplex2vertexdata(F1,DF,V1; weighting=:size)
         D_true = [1.0, 1.0, 1.0, 1.0]
         @test isapprox(DV,D_true, atol=eps_level)
         
 
         # Quads
         DF = collect(Float64,1:length(Fq)) # Face data (here face numbers)
-        DV = simplex2vertexdata(Fq,DF,Vq; weighting=:area)
+        DV = simplex2vertexdata(Fq,DF,Vq; weighting=:size)
         D_true = [13.333333333333332, 14.666666666666668, 17.333333333333336, 20.0, 11.666666666666666, 9.0, 7.666666666666667, 6.333333333333333, 11.0, 6.500000000000001, 11.5, 9.0, 10.0, 14.5, 12.500000000000002, 13.5, 14.5, 13.5, 18.0, 15.5, 10.0, 10.999999999999998, 12.000000000000002, 13.000000000000002, 14.0, 15.0]
         @test isapprox(DV,D_true, atol=eps_level)
 
         # Triangles
         DF = collect(Float64,1:length(Ft)) # Face data (here face numbers)
-        DV = simplex2vertexdata(Ft,DF,Vt; weighting=:area)
+        DV = simplex2vertexdata(Ft,DF,Vt; weighting=:size)
         D_true = [10.333333333333334, 11.333333333333334, 13.333333333333336, 6.999999999999999, 5.095917942265425, 5.646428199482246, 6.646428199482247, 6.146428199482247, 6.49489742783178, 6.545407685048602]
+        @test isapprox(DV,D_true, atol=eps_level)
+
+        # Hexahedral elements
+        DF = collect(Float64,1:length(Eh)) # Face data (here face numbers)
+        DV = simplex2vertexdata(Eh,DF,Vh; weighting=:size)
+        D_true = [1.0, 1.5, 2.0, 2.0, 2.5, 3.0, 3.0, 3.5, 4.0, 3.0, 3.5, 4.0, 4.0, 4.5, 5.0, 5.0, 5.5, 6.0, 5.0, 5.5, 6.0, 6.0, 6.5, 7.0, 7.0, 7.5, 8.0]
+        @test isapprox(DV,D_true, atol=eps_level)
+
+        # Edges
+        DF = collect(Float64,1:length(Lq))
+        DV = simplex2vertexdata(Lq,DF,Vq; weighting=:size)
+        D_true = [49.33333333333334, 50.66666666666668, 53.333333333333336, 56.00000000000001, 47.66666666666667, 45.00000000000001, 43.66666666666667, 42.333333333333336, 47.00000000000001, 42.5, 47.50000000000001, 45.00000000000001, 46.00000000000001, 50.5, 48.50000000000001, 49.50000000000001, 50.500000000000014, 49.5, 54.00000000000001, 51.500000000000014, 46.0, 46.99999999999999, 48.0, 49.0, 50.0, 51.0]
         @test isapprox(DV,D_true, atol=eps_level)
     end
     
@@ -2831,7 +2878,7 @@ end
 
         # Quads
         DF = [i.*[1.0 2.0 3.0; 4.0 5.0 6.0] for i in eachindex(Fq)] # Matrix data for each face
-        DV = simplex2vertexdata(Fq,DF,Vq; weighting=:area)
+        DV = simplex2vertexdata(Fq,DF,Vq; weighting=:size)
         ind = round.(Int,range(1,length(DV),6))
         D_true = [[13.333333333333332 26.666666666666664 40.0; 53.33333333333333 66.66666666666667 80.0], [9.0 18.0 27.0; 36.0 45.0 54.0], [11.5 23.0 34.5; 46.0 57.5 69.0], [13.5 27.0 40.5; 54.0 67.5 81.0], [10.0 20.0 30.0; 40.0 49.99999999999999 60.0], [15.0 30.0 45.0; 60.0 75.0 90.0]]
         @test isapprox(DV[ind],D_true, atol=eps_level)
@@ -2986,12 +3033,12 @@ end
     end
 
     @testset "Quadrilaterals" begin
-        F, V = quadsphere(2, 1.0)
+        F, V = subquadsphere(2, 1.0)
         VC = simplexcenter(F, V)
         ind = round.(Int,range(1,length(VC),5))
         @test VC isa typeof(V)
         @test length(VC) == length(F)
-        VC_true = Point{3, Float64}[[-0.4802860138667546, -0.4802860138667546, -0.6949720954766154], [-0.532669638325336, -0.16747661189958585, -0.7899092719339054], [0.532669638325336, -0.7899092719339054, -0.16747661189958585], [0.18742110835893674, -0.9256306250953279, -0.18742110835893674], [0.16747661189958585, -0.7899092719339054, -0.532669638325336]]
+        VC_true = Point{3, Float64}[[-0.48624303129694313, -0.48624303129694313, -0.6913184394948764], [-0.5330679123349682, -0.1754002930303379, -0.7870889972738774], [0.5330679123349682, -0.7870889972738774, -0.1754002930303379], [0.18978604606913252, -0.9236437317570111, -0.18978604606913252], [0.1754002930303379, -0.7870889972738774, -0.5330679123349682]]
         @test isapprox(VC[ind], VC_true, atol=eps_level)
     end
 end
@@ -3167,7 +3214,7 @@ end
 end
 
 @testset "grid2surf" verbose = true begin    
-
+    
     nc = 11
     t = range(0,2.0*π-(2.0*π)/nc,nc) 
     V1 = [Point3{Float64}(cos(tt), sin(tt),0.0) for tt in t]
@@ -3182,6 +3229,13 @@ end
         num_steps=4 # i.e. too many
         @test_throws ArgumentError  grid2surf(Vp3,num_steps; periodicity=(false,false),face_type=:quad)
     end    
+
+    @testset "gridpoints" begin
+        num_steps = 5
+        V = gridpoints(range(0.0,2.0*π,num_steps),range(0.0,2.0*π,num_steps),1.0)         
+        F = grid2surf(V,num_steps; face_type=:quad, periodicity=(false,false))
+        @test length(F) == (num_steps-1)^2
+    end
 
     @testset "2 points 2 steps" begin
         # Example curves
@@ -3650,7 +3704,7 @@ end
     @testset "Single triangle" begin
         F = [TriangleFace{Int}(1, 2, 3)]       
         E = meshedges(F)
-        Eu,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
+        Eu,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)
         count_E2F = count_edge_face(F,Eu,indReverse)
         @test count_E2F == [1,1,1]
 
@@ -3663,7 +3717,7 @@ end
     @testset "Single quad" begin
         F = [QuadFace{Int}(1, 2, 3, 4)]       
         E = meshedges(F)
-        Eu,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
+        Eu,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)
         count_E2F = count_edge_face(F,Eu,indReverse)
         @test count_E2F == [1,1,1,1]
     end
@@ -3671,7 +3725,7 @@ end
     @testset "Triangles" begin
         F = [TriangleFace{Int}(1, 2, 3),TriangleFace{Int}(1, 4, 3)]
         E = meshedges(F)
-        Eu,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
+        Eu,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)
         count_E2F = count_edge_face(F,Eu,indReverse)
         @test count_E2F == [1,1,1,1,2]
     end
@@ -3679,7 +3733,7 @@ end
     @testset "Quads" begin
         F = [QuadFace{Int}(1, 2, 3, 4),QuadFace{Int}(6, 5, 4, 3)]
         E = meshedges(F)
-        Eu,_,indReverse = gunique(E; return_unique=true, return_index = true, return_inverse = true, sort_entries = true)
+        Eu,_,indReverse = gunique(E; return_unique=Val(true), return_index = Val(true), return_inverse = Val(true), sort_entries = true)
         count_E2F = count_edge_face(F,Eu,indReverse)
         @test count_E2F == [1,1,1,1,2,1,1] 
     end
@@ -4262,7 +4316,7 @@ end
 
         # Quadrangulated sphere, distance should approximate π 
         r = 1.0
-        F,V = quadsphere(4,r)
+        F,V = subquadsphere(4,r)
         z = [v[3] for v in V]
         indStart =[findmin(z)[2]]
         d,dd,l = distmarch(F,V,indStart)
@@ -4364,7 +4418,7 @@ end
     @testset "Quadrangulated sphere" begin
         r = 10
         k_true = 1.0/r
-        F,V = quadsphere(4,r) 
+        F,V = subquadsphere(4,r) 
         K1,K2,U1,U2,H,G = mesh_curvature_polynomial(F,V)
         @test isapprox(mean(K1),k_true,atol=eps_level)
         @test isapprox(mean(K2),k_true,atol=eps_level)
@@ -5370,8 +5424,19 @@ end
         [0.8194254478692206, 0.375, 0.36319552381099396]],atol=eps_level)
     end
 
-end
+    @testset "Errors" begin
+        # Loading a mesh
+        fileName_mesh = joinpath(comododir(),"assets","stl","david.stl")
+        M = load(fileName_mesh)
 
+        # Obtain mesh faces and vertices
+        F = tofaces(faces(M))
+        V = topoints(coordinates(M))
+        F,V,_ = mergevertices(F,V)
+
+        @test_throws Exception dualclad(F,V,0.5; connectivity=:face)
+    end
+end
 
 
 @testset "tet2hex" verbose = true begin
@@ -6960,7 +7025,7 @@ end
     np=7
     xRange = range(-1.0-w,1.0+w,np)
     yRange = range(-1.0,1.0,np)
-    Vq = gridpoints(xRange, yRange,[0.0])
+    Vq = collect(gridpoints(xRange, yRange,[0.0]))
         
     # Add some co-linear on edge points 
     Vq_add = [(0.25*V[i] + 0.75*V[i+1]) for i in 1:length(V)-1]
@@ -7249,6 +7314,25 @@ end
         @test Vn == Vn
         @test En[1] == [1, 2, 6, 56,57,58]                
     end    
+
+    @testset "Errors" verbose = true begin                
+         # Triangles 
+         plateDim1 = [2.0,4.0]      
+         pointSpacing = 0.5              
+         F1,V1 = triplate(plateDim1,pointSpacing)
+         ind1 = unique(reduce(vcat,F1))
+         p = eltype(V1)(0.0,0.0,15.0)
+         V2 = [v+p for v in V1[ind1]] 
+         num_steps = 8
+         correspondence = :faces         
+        @test_throws ArgumentError fromtomesh(F1, V1, V2, 0; correspondence = correspondence)       
+
+        F1 = [NgonFace{6,Int}(1,2,3,4,5,6)]
+        V1 = rand(Point{3,Float64},length(F1[1]))
+        V2 = V1
+        correspondence = :match         
+        @test_throws ArgumentError fromtomesh(F1, V1, V2, num_steps; correspondence = correspondence)       
+    end
 end
 
 @testset "vectorpair_angle" verbose = true begin                
@@ -7357,5 +7441,78 @@ end
         F,V = extrudecurve(Vc; extent=0.25, direction=:both, n=n, close_loop=false,face_type=:tri)
         indFace = 1
         @test_throws Exception faceinteriorpoint(F,V, indFace)
+
+        Vc = [Point{3,Float64}(x,0.0,0.0) for x in range(0.0,2.0,5)]
+        n = normalizevector(Vec{3, Float64}(0.0,0.0,1.0)) # Extrusion direction
+        F,V = extrudecurve(Vc; extent=3.0, direction=:both, n=n, close_loop=false,face_type=:tri)
+        V2 = V .+ Point{3,Float64}(0.0,2.0,0.0) # Add point in y direction 
+        F,V,_ = joingeom(F,V,F,V2)
+        indFace = 1
+        @test_throws Exception faceinteriorpoint(F,V, indFace)       
     end
 end
+    
+@testset "hexsphere" verbose = true begin                       
+    eps_level = 1e-6
+    nSmooth = 5
+    r = 2.0
+    f = 0.75
+    pointSpacing = 0.2
+    E,V = hexsphere(r,pointSpacing; f=f, nSmooth=nSmooth)   
+    Fb = boundaryfaces(E)
+    indBoundary = elements2indices(Fb)
+    @test isa(E,Vector{Hex8{Int}}) 
+    @test isa(V,Vector{Point{3,Float64}}) 
+    @test isapprox(norm.(V[indBoundary]),fill(r,length(indBoundary)),atol=eps_level)
+end
+
+@testset "hexspherehollow" verbose = true begin                       
+    eps_level = 1e-6
+    rOut = 2.0
+    rIn = 1.0
+    pointSpacing = 0.2
+
+    # Test error for when the inner radius is too large
+    @test_throws Exception hexspherehollow(rOut,rOut,pointSpacing)   
+    @test_throws Exception hexspherehollow(rOut,2.0*rOut,pointSpacing)   
+
+    # Test default behaviour 
+    E,V = hexspherehollow(rOut,rIn,pointSpacing)       
+    Fb = boundaryfaces(E)
+    indBoundary = elements2indices(Fb)
+    @test isa(E,Vector{Hex8{Int}}) 
+    @test isa(V,Vector{Point{3,Float64}}) 
+    rF = norm.(V[indBoundary])    
+    @test isapprox(minimum(rF),rIn,atol=eps_level)
+    @test isapprox(maximum(rF),rOut,atol=eps_level)
+
+    # Tests for specified number of steps
+    numSteps = 5
+    E,V = hexspherehollow(rOut,rIn,pointSpacing; numSteps = numSteps)       
+    Fb = boundaryfaces(E)
+    @test length(E) == (numSteps-1)*length(Fb)/2
+end
+
+if get(ENV, "CI", "false") != "true"
+    @testset "Demos" begin
+        demo_path = joinpath(comododir(), "examples")
+        demos = filter!(startswith("demo"), readdir(demo_path))
+        
+        function rundemo(demo_path, demo)
+            Pkg.activate(demo_path; io = devnull)
+            include(joinpath(demo_path, demo)) # Could also use a temporarily module, similar to SafeTestsets or DelaunayTriangulation.jl's testsets
+            Pkg.activate(joinpath(@__FILE__, ".."); io = devnull)
+        end
+
+        foreach(demos) do demo
+            println(" ---------------------------")
+            println(" Running demo: $demo ")
+            println(" ---------------------------")
+            rundemo(demo_path, demo)
+            sleep(1)
+        end
+    end
+else
+    @info "Skipping demo tests on CI"
+end
+    
