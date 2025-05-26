@@ -7418,10 +7418,10 @@ end
 end
 
 @testset "faceinteriorpoint" verbose = true begin                       
-    @testset "sphere" verbose = true begin                       
+    @testset "sphere outward normals" verbose = true begin                       
         n = 5 
         r = 2.0
-        F,V = geosphere(4,r)
+        F,V = geosphere(4,r) # Outward faces 
         eps_level = r./100
 
         indFace = 1
@@ -7432,8 +7432,33 @@ end
         @test isa(P_in,Point{3,Float64})
         @test isapprox(P_in,mean(V),atol=eps_level)
         @test isapprox(norm(P_on1-P_on2),2.0*r,atol=eps_level)
+
+        # Errors
+        @test_throws Exception faceinteriorpoint(F,V, indFace; w=0.0, triSide = 1) # mean of face
+        @test_throws ArgumentError faceinteriorpoint(F,V, indFace; w=0.0, triSide = 0)
     end
 
+    @testset "sphere inward normals, triSide variations" verbose = true begin                       
+        n = 5 
+        r = 2.0
+        F,V = geosphere(4,r)
+        invert_faces!(F) # invert faces so they point in
+        eps_level = r./100
+
+        indFace = 1
+        P_on1 = faceinteriorpoint(F,V, indFace; w=0.0, triSide = 1) # mean of face
+        P_in = faceinteriorpoint(F,V, indFace; w=0.5, triSide = 1) # Mid-point around mean
+        P_on2 = faceinteriorpoint(F,V, indFace; w=1.0, triSide = 1) # other side
+
+        @test isa(P_in,Point{3,Float64})
+        @test isapprox(P_in,mean(V),atol=eps_level)
+        @test isapprox(norm(P_on1-P_on2),2.0*r,atol=eps_level)
+
+        # Errors
+        @test_throws Exception faceinteriorpoint(F,V, indFace; w=0.0, triSide = -1) # mean of face
+        @test_throws ArgumentError faceinteriorpoint(F,V, indFace; w=0.0, triSide = 0)
+    end
+    
     @testset "Errors" verbose = true begin                       
         t = range(0.0,0.5*pi,10)
         Vc = [Point{3,Float64}(cos(t),sin(t),0.0) for t in t]
@@ -7491,6 +7516,95 @@ end
     E,V = hexspherehollow(rOut,rIn,pointSpacing; numSteps = numSteps)       
     Fb = boundaryfaces(E)
     @test length(E) == (numSteps-1)*length(Fb)/2
+end
+
+@testset "circumcircle" verbose = true begin        
+    eps_level = 1e-6
+
+    # Single triangle
+    V = [Point{3,Float64}(-0.5, 0.0, 0.0), Point{3,Float64}(0.5, 0.0, 0.0), Point{3,Float64}(0.0, sqrt(3.0)/2, 0.0)]
+    f = TriangleFace{Int}(1,2,3)       
+    R, P = circumcircle(f,V)
+
+    @test isapprox(R,sqrt(1/3),atol=eps_level)
+    @test isapprox(P,Point{3, Float64}(0.0, sqrt(1/12),0.0),atol=eps_level)
+
+    # Single triangle vector of faces
+    V = [Point{3,Float64}(-0.5, 0.0, 1.0), Point{3,Float64}(0.5, 0.0, 1.0), Point{3,Float64}(0.0, sqrt(3.0)/2, 1.0)]
+    F = [TriangleFace{Int}(1,2,3)]        
+    R, P = circumcircle(F,V)
+
+    @test isapprox(R[1],sqrt(1/3),atol=eps_level)
+    @test isapprox(P[1],Point{3, Float64}(0.0, sqrt(1/12),1.0),atol=eps_level)
+    
+    r = 2.0
+    n = 0
+    F, V = geosphere(n,r)  
+    R, P = circumcircle(F,V)
+
+    @test all([isapprox(r, 1.2141239964133723, atol=eps_level) for r in R])
+end
+
+@testset "incircle" verbose = true begin        
+    eps_level = 1e-6
+
+    # Single triangle
+    V = [Point{3,Float64}(-0.5, 0.0, 0.0), Point{3,Float64}(0.5, 0.0, 0.0), Point{3,Float64}(0.0, sqrt(3.0)/2, 0.0)]
+    f = TriangleFace{Int}(1,2,3)       
+    R, P = incircle(f,V)
+
+    @test isapprox(R,sqrt(1/12),atol=eps_level)
+    @test isapprox(P,Point{3, Float64}(0.0, sqrt(1/12),0.0),atol=eps_level)
+
+    # Single triangle vector of faces
+    V = [Point{3,Float64}(-0.5, 0.0, 1.0), Point{3,Float64}(0.5, 0.0, 1.0), Point{3,Float64}(0.0, sqrt(3.0)/2, 1.0)]
+    F = [TriangleFace{Int}(1,2,3)]        
+    R, P = incircle(F,V)
+
+    @test isapprox(R[1],sqrt(1/12),atol=eps_level)
+    @test isapprox(P[1],Point{3, Float64}(0.0, sqrt(1/12),1.0),atol=eps_level)
+    
+    r = 2.0
+    n = 0
+    F, V = geosphere(n,r)  
+    R, P = incircle(F,V)
+
+    @test all([isapprox(r, 0.6070619982066864, atol=eps_level) for r in R])
+end
+
+@testset "meshplot!" verbose = true begin        
+    # Example mesh
+    r = 1.0 # radius
+    n1 = 0 # Number of refinement iterations
+    F1,V1 = geosphere(n1,r)
+
+    #Visualize mesh
+    fig = Figure(size = (1600,800))
+
+    ax1 = AxisGeom(fig[1, 1], title = "Visualised mesh")
+    hp1 = meshplot!(ax1, F1, V1; strokewidth=2)
+    @test typeof(hp1) == Poly{Tuple{GeometryBasics.Mesh{3, Float64, TriangleFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{TriangleFace{Int64}}}}} 
+end
+
+@testset "edgeplot!" verbose = true begin        
+    # Example mesh
+    r = 1.0 # radius
+    n1 = 0 # Number of refinement iterations
+    F1,V1 = geosphere(n1,r)
+    E1 = meshedges(F1)
+
+    #Visualize mesh
+    fig = Figure(size = (800,800))
+
+    ax1 = AxisGeom(fig[1, 1], title = "Visualised mesh")
+    hp1 = edgeplot!(ax1, E1, V1; linewidth=2)
+    @test typeof(hp1) == Wireframe{Tuple{GeometryBasics.Mesh{3, Float64, LineFace{Int64}, (:position,), Tuple{Vector{Point{3, Float64}}}, Vector{LineFace{Int64}}}}}
+end
+
+@testset "AxisGeom" verbose = true begin        
+    fig = Figure(size=(800,800))    
+    ax1 = AxisGeom(fig[1,1]; title = "Title")
+    @test typeof(ax1) == Axis3
 end
 
 if get(ENV, "CI", "false") != "true"
